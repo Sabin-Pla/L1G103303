@@ -16,7 +16,7 @@ import scheduler.Scheduler;
  */
 public class Elevator implements Runnable {
     private Scheduler scheduler;
-    private Deque<DataStorage> requestQueue; //a queue containing all requests for the elevator
+    private Deque<DataStorage> requestQueue; //a queue containing all requests for the elevator ..
     private DataStorage currentRequest;
 
     /**
@@ -35,24 +35,19 @@ public class Elevator implements Runnable {
 		while (true) {
             try {
                 Thread.sleep(100);
-                ///add a request to the elevators request queue
+                //add a request to the elevators request queue
                 requestQueue.add(scheduler.getRequest());
-                
                 //pop the request queue to return the info received from the scheduler
                 currentRequest = requestQueue.pop();
-                
                 //print confirmation of data received
                 System.out.println("Elevator received information from Scheduler: " + currentRequest.toString()); 
                 System.out.println(toString());
-                
                 //give request information back to the scheduler
                 scheduler.setRequest(currentRequest);
-                
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
-		
 	}
 
     /**
