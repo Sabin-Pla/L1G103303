@@ -3,8 +3,8 @@ package floorSubSystem;
 /**
  * This class stores the requests from the request document
  * 
- * @author Mmedara Josiah 101053887
- * @version 1.0
+ * @author
+ * @version Iteration 1
  */
 public class DataStorage {
 	private String requestTime; //request time
@@ -51,7 +51,7 @@ public class DataStorage {
         destinationFloor = 0;
     }
 	
-	//GETTERS//
+			//GETTERS//
 	public String getRequestTime() {
 		return requestTime;
 	}
@@ -66,7 +66,7 @@ public class DataStorage {
 	}
 	
 	public String toString() {
-		return "[" + requestTime + "] Floor " + currentFloor + " --> Floor " + destinationFloor + " | "
-	                   + (goingUp ? "UP" : "DOWN");
+		return "[" + requestTime + "] move " + (goingUp ? "up" : "down") + 
+				" from floor " + currentFloor + " to " + destinationFloor; 
 	}
 }

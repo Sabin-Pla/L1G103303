@@ -8,8 +8,8 @@ import java.util.Scanner;
 /**
  * This class parses the requests from the requests file
  * 
- * @author Mmedara Josiah 101053887
- * @version 1.0
+ * @author John Afolayan 
+ * @version Iteration 1
  */
 public class Parser {
 	private static final String REQUESTFILE = "src/requestsFile.txt";
@@ -17,22 +17,26 @@ public class Parser {
 	/**
      * This method reads requests from the file and stores it in the DataStorage class
      * 
-     * @return An array dequeue of all the requests from the file.
+     * @return An array queue of all the requests from the file.
      */
     public ArrayDeque<DataStorage> getRequestFromFile() {
-        ArrayDeque<DataStorage> request = new ArrayDeque<>();
+    	//make a new array queue
+        ArrayDeque<DataStorage> requestQueue = new ArrayDeque<>();
+        //store the request text file in a file variable
         File file = new File(REQUESTFILE);
         Scanner scanner;
         try {
+        	//scan through the request file
             scanner = new Scanner(file);
+            //if the file has a new line, store that new line in the queue
             while (scanner.hasNext()) {
-                request.add(new DataStorage(scanner.nextLine()));
+                requestQueue.add(new DataStorage(scanner.nextLine()));
             }
             scanner.close();
         } catch (FileNotFoundException e) {
-            System.out.println("There is a problem with reading the request.");
+            System.out.println("There was a problem while reading the request.");
             return null;
         }
-        return request;
+        return requestQueue;
     }
 }

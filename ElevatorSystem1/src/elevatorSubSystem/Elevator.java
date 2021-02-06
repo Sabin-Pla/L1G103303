@@ -10,8 +10,8 @@ import scheduler.Scheduler;
  * in iteration 1, the elevator receives info from the scheduler,
  * uses it and sends it back to the scheduler
  * 
- * @author Mmedara Josiah 101053887
- * @version 1.0
+ * @author Mmedara Josiah
+ * @version Iteration 1
  *
  */
 public class Elevator implements Runnable {
@@ -36,11 +36,11 @@ public class Elevator implements Runnable {
             try {
                 Thread.sleep(100);
                 //add a request to the elevators request queue
-                requestQueue.add(scheduler.getRequest());
+                requestQueue.add(scheduler.getNewRequest());
                 //pop the request queue to return the info received from the scheduler
                 currentRequest = requestQueue.pop();
                 //print confirmation of data received
-                System.out.println("Elevator received information from Scheduler: " + currentRequest.toString()); 
+                System.out.println("Elevator has received a request from the Scheduler:\n" + currentRequest.toString()); 
                 System.out.println(toString());
                 //give request information back to the scheduler
                 scheduler.setRequest(currentRequest);
@@ -57,8 +57,7 @@ public class Elevator implements Runnable {
      */
     @Override
     public String toString() {
-        return "At time " + currentRequest.getRequestTime() + ", the elevator is moving "
-                + (currentRequest.getGoingUp() ? "up" : "down") + " from floor " + currentRequest.getCurrentFloor()
-                + " to floor " + currentRequest.getDestinationFloor();
+        return "[" + currentRequest.getRequestTime() + "] Elevator is moving " + (currentRequest.getGoingUp() ? "up" : "down") + 
+        		" from floor " + currentRequest.getCurrentFloor() + " to " + currentRequest.getDestinationFloor();
     }
 }
