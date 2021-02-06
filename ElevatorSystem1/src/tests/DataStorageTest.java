@@ -9,7 +9,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import floor.DataStorage;
+import events.DataStorage;
 
 /**
  * This class tests the DataStorage.java class

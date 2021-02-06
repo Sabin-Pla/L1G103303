@@ -1,8 +1,7 @@
 package elevator;
 
 import java.util.*;
-
-import floor.DataStorage;
+import events.ElevatorEvent;
 import scheduler.Scheduler;
 
 /**
@@ -10,20 +9,21 @@ import scheduler.Scheduler;
  * in iteration 1, the elevator receives info from the scheduler,
  * uses it and sends it back to the scheduler
  * 
- * @author Mmedara Josiah
+ * @author Mmedara Josiah, Sabin Plaiasu
  * @version Iteration 1
  *
  */
 public class Elevator implements Runnable {
     private Scheduler scheduler;
-    private Deque<DataStorage> requestQueue; //a queue containing all requests for the elevator ..
-    private DataStorage currentRequest;
-
+    private Queue<ElevatorEvent> requests;
+    // requests must contain a valid queue of inputs
+    // i.e, the destination floor in one event must be the source floor in the next
+    private int currentFloor;
+    
     /**
      * Constructor
      */
     public Elevator(Scheduler scheduler) {
-        requestQueue = new ArrayDeque<DataStorage>();
         this.scheduler = scheduler;
     }
     
@@ -31,33 +31,25 @@ public class Elevator implements Runnable {
      * This method runs the elevator thread
      */
     @Override
-	public void run() {
+	public synchronized void run() {
 		while (true) {
-            try {
-                Thread.sleep(100);
-                //add a request to the elevators request queue
-                requestQueue.add(scheduler.getNewRequest());
-                //pop the request queue to return the info received from the scheduler
-                currentRequest = requestQueue.pop();
-                //print confirmation of data received
-                System.out.println("Elevator has received a request from the Scheduler:\n" + currentRequest.toString()); 
-                System.out.println(toString());
-                //give request information back to the scheduler
-                scheduler.setRequest(currentRequest);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+			try {
+				while (requests.isEmpty()) {
+						wait();
+				}
+				ElevatorEvent next = requests.poll();
+				System.out.println("Elevator has received a request from the Scheduler:\n" + 
+						next.toString()); 
+				fulfillRequest(next);
+				notifyAll();
+			} catch (InterruptedException e) {}
         }
 	}
-
-    /**
-     * This method returns the current movement of the elevator
-     * 
-     * @return the current movement of the elevator
-     */
-    @Override
-    public String toString() {
-        return "[" + currentRequest.getRequestTime() + "] Elevator is moving " + (currentRequest.getGoingUp() ? "up" : "down") + 
-        		" from floor " + currentRequest.getCurrentFloor() + " to " + currentRequest.getDestinationFloor();
+    
+    private void fulfillRequest(ElevatorEvent request) throws InterruptedException {
+    	ElevatorEvent next = requests.poll();
+    	Thread.sleep(100); //simulate delay, remove next iteration
+    	currentFloor = next.getDestinationFloor();
+    	scheduler.processedEvent(next);
     }
 }

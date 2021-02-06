@@ -3,7 +3,9 @@ package scheduler;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-import floor.DataStorage;
+import events.ElevatorEvent;
+import events.FloorEvent;
+import events.RequestEvent;
 
 /**
  * This scheduler is the middle man between the elevator and
@@ -13,7 +15,7 @@ import floor.DataStorage;
  * @version Iteration 1
  */
 public class Scheduler implements Runnable {
-	private Deque<DataStorage> requestQueue;
+	private Deque<RequestEvent> requestQueue; // TODO: find a better data structure. Double ended queue should not be used
 	
 	/**
 	 * Constructor
@@ -26,11 +28,31 @@ public class Scheduler implements Runnable {
 	 * Runs the scheduler thread
 	 */
 	@Override
-	public void run() {
-		// TODO Auto-generated method stub
-		
+	public synchronized void run() {
+		while (true) {
+			while (requestQueue.isEmpty()) {
+				try {
+					wait();
+				} catch (InterruptedException e) {}
+				fulfillNextRequest();
+			}
+		}
 	}
 	
+	
+	private void fulfillNextRequest() {
+		RequestEvent event = requestQueue.pop();
+		// scheduler is given FloorEvents by floor
+		// scheduler returns ElevatorEvents to floor when 
+		
+		if (event instanceof FloorEvent) {
+			
+		} else if (event instanceof ElevatorEvent) {
+			// Should move elevator when implemented. For now simply sends data back to floor
+		}
+		
+	}
+
 	/**
 	 * return the first request in the queue if the queue is not empty
 	 * else, wait
@@ -38,7 +60,7 @@ public class Scheduler implements Runnable {
 	 * @return the first request in the queue
 	 * @throws InterruptedException
 	 */
-	public synchronized DataStorage getNewRequest() throws InterruptedException {
+	public synchronized RequestEvent getNewRequest() throws InterruptedException {
 		//wait till the request queue has at least one request
 		if(requestQueue.isEmpty()) {
 			wait();
@@ -47,19 +69,24 @@ public class Scheduler implements Runnable {
 		return requestQueue.pop();
 	}
 	
+	public RequestEvent peekRequests() {
+		return requestQueue.peek();
+	}
+	
 	/**
 	 * Stores an incoming request in the scheduler's queue
 	 * 
 	 * @param request
 	 * @throws InterruptedException
 	 */
-	public synchronized void setRequest(DataStorage request) throws InterruptedException {
-		if(!requestQueue.isEmpty()) {
-			wait();
-		}
+	public synchronized void setRequest(RequestEvent request) throws InterruptedException {
 		requestQueue.add(request);
 		System.out.println("Scheduler has received a request from " + Thread.currentThread().getName() + ":\n" + request);
 		notifyAll();
+	}
+
+	public void processedEvent(ElevatorEvent event) {
+		System.out.println("Elevator has processed event:\n" + event.toString());
 	}
 
 }

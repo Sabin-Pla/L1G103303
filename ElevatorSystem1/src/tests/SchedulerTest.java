@@ -9,7 +9,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import elevator.Elevator;
-import floor.DataStorage;
+import events.DataStorage;
 import floor.Floor;
 import scheduler.Scheduler;
 

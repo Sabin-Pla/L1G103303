@@ -2,6 +2,7 @@
 
 import elevator.Elevator;
 import floor.Floor;
+import floor.Parser;
 import scheduler.Scheduler;
 
 /**
@@ -12,12 +13,18 @@ import scheduler.Scheduler;
 public class Main {
 
 	public static void main(String[] args) {
+		Parser p = new Parser();
+		p.getRequestFromFile();
         Scheduler scheduler = new Scheduler();
-        Thread floorThread = new Thread(new Floor(scheduler), "Floor");
+        Floor floor1 = new Floor(1);
+        floor1.setScheduler(scheduler);
+        Thread floorThread1 = new Thread(floor1, "Floor1");
+        Thread floorThread2 = new Thread(new Floor(2), "Floor2");
         Thread schedulerThread = new Thread(scheduler, "Scheduler");
         Thread elevatorThread = new Thread(new Elevator(scheduler), "Elevator");
 
-        floorThread.start();
+        floorThread1.start();
+        floorThread2.start();
         schedulerThread.start();
         elevatorThread.start();
 	}
