@@ -12,7 +12,7 @@ import floorSubSystem.Parser;
 /**
  * This class tests the Parser.java class
  * 
- * @author
+ * @author John Afolayan
  * @version Iteration 1
  */
 public class ParserTest {

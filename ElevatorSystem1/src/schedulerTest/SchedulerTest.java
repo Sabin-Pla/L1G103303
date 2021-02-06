@@ -16,7 +16,7 @@ import scheduler.Scheduler;
 /**
  * This class tests the Scheduler.java class
  * 
- * @author
+ * @author Harshil Verma
  * @version Iteration 1
  */
 public class SchedulerTest {

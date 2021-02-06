@@ -9,7 +9,7 @@ import scheduler.Scheduler;
  * The floor class sends a request to the scheduler and 
  * asks the scheduler for a new request
  * 
- * @author 
+ * @author Sabin Plaiasu
  * @version Iteration 1
  */
 public class Floor implements Runnable {

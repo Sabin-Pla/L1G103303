@@ -18,7 +18,7 @@ import scheduler.Scheduler;
 /**
  * This class tests the Floor.java class
  * 
- * @author 
+ * @author Sabin Plaiasu
  * @version Iteration 1
  */
 public class FloorTest {

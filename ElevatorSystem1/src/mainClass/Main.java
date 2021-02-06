@@ -6,6 +6,8 @@ import scheduler.Scheduler;
 
 /**
  * This is the main class that starts all the threads
+ * 
+ * @version Iteration 1
  */
 public class Main {
 

@@ -19,7 +19,6 @@ import scheduler.Scheduler;
 /**
  * This class tests the Main.java class
  * 
- * @author
  * @version Iteration 1
  */
 public class MainTest {

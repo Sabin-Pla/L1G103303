@@ -9,7 +9,7 @@ import floorSubSystem.DataStorage;
  * This scheduler is the middle man between the elevator and
  * the floor sub systems. It schedules requests for both subsystems
  * 
- * @author
+ * @author Harshil Verma
  * @version Iteration 1
  */
 public class Scheduler implements Runnable {
