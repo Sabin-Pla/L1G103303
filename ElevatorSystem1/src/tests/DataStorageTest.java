@@ -1,4 +1,4 @@
-package floorSubSystemTest;
+package tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -9,7 +9,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import floorSubSystem.DataStorage;
+import floor.DataStorage;
 
 /**
  * This class tests the DataStorage.java class

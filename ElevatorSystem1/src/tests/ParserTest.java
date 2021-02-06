@@ -1,4 +1,4 @@
-package floorSubSystemTest;
+package tests;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -7,7 +7,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import floorSubSystem.Parser;
+import floor.Parser;
 
 /**
  * This class tests the Parser.java class

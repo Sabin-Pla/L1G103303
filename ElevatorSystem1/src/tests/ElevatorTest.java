@@ -1,6 +1,5 @@
-package elevatorSubSystemTest;
+package tests;
 
-import elevatorSubSystem.Elevator;
 import scheduler.Scheduler;
 
 import static org.junit.Assert.assertNotNull;
@@ -8,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import elevator.Elevator;
 
 /**
  * This class tests the Elevator.java class

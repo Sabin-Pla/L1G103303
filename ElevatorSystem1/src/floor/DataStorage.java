@@ -1,4 +1,5 @@
-package floorSubSystem;
+package floor;
+
 
 /**
  * This class stores the requests from the request document

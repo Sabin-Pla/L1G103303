@@ -1,4 +1,4 @@
-package floorSubSystem;
+package floor;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -15,7 +15,7 @@ import scheduler.Scheduler;
 public class Floor implements Runnable {
 	
 	private Deque<DataStorage> requestQueue; //this queue stores all the requests to be fulfilled by the floor
-	private Scheduler scheduler;
+	private static Scheduler scheduler;
 	
 	/**
 	 * Constructor initializes all variables

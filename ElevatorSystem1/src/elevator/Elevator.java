@@ -1,8 +1,8 @@
-package elevatorSubSystem;
+package elevator;
 
 import java.util.*;
 
-import floorSubSystem.DataStorage;
+import floor.DataStorage;
 import scheduler.Scheduler;
 
 /**

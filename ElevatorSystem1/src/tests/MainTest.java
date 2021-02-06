@@ -1,4 +1,4 @@
-package mainClassTest;
+package tests;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -12,8 +12,8 @@ import org.junit.Test;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
-import elevatorSubSystem.Elevator;
-import floorSubSystem.Floor;
+import elevator.Elevator;
+import floor.Floor;
 import scheduler.Scheduler;
 
 /**
@@ -61,7 +61,14 @@ public class MainTest {
 	 */
 	@Test
 	public void test() {
-		assertNotNull(outStream.toString());
+		String[] expectedOutput = new String[3];
+		expectOutput[1] = "floor system message";
+		synchronized (outStream) {
+			while (!outStreamHasChanged()) {
+				wait();
+			}
+			assertNotNull(outStream.toString());
+		}
 	}
 
 	/**

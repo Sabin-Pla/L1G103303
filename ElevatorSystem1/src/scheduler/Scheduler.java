@@ -3,7 +3,7 @@ package scheduler;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-import floorSubSystem.DataStorage;
+import floor.DataStorage;
 
 /**
  * This scheduler is the middle man between the elevator and

@@ -1,4 +1,4 @@
-package schedulerTest;
+package tests;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -8,9 +8,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import elevatorSubSystem.Elevator;
-import floorSubSystem.DataStorage;
-import floorSubSystem.Floor;
+import elevator.Elevator;
+import floor.DataStorage;
+import floor.Floor;
 import scheduler.Scheduler;
 
 /**

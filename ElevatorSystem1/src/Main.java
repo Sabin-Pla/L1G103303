@@ -1,7 +1,7 @@
-package mainClass;
 
-import elevatorSubSystem.Elevator;
-import floorSubSystem.Floor;
+
+import elevator.Elevator;
+import floor.Floor;
 import scheduler.Scheduler;
 
 /**
