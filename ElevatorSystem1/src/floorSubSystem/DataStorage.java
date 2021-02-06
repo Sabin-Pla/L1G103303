@@ -3,7 +3,7 @@ package floorSubSystem;
 /**
  * This class stores the requests from the request document
  * 
- * @author
+ * @author Aayush Mallya
  * @version Iteration 1
  */
 public class DataStorage {
