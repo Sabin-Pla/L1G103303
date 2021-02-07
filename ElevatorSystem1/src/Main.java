@@ -13,8 +13,7 @@ import scheduler.Scheduler;
 public class Main {
 
 	public static void main(String[] args) {
-		Parser p = new Parser();
-		p.getRequestFromFile();
+		Parser.getRequestFromFile();
         Scheduler scheduler = new Scheduler();
         Floor floor1 = new Floor(1);
         floor1.setScheduler(scheduler);

@@ -41,31 +41,33 @@ public class Floor implements Runnable {
 	 */
 	@Override
 	public void run() {
-		try {
-			RequestPairing pairing = Parser.getNextRequest(floorNumber);
-			while (pairing != null) {
-				FloorEvent event = pairing.getFloorRequest();
-				destinationMap.put(event, pairing.getDestinationFloor());
-				//send the first request in the queue to the scheduler
-				scheduler.setRequest(event);
-				
-				while (elevatorArrived()) {
-					wait();
-				}
-				
-				Thread.sleep(100);
-				
-				int destinationFloor = destinationMap.get(scheduler.getNewRequest());
-				ElevatorEvent elevatorEvent = new ElevatorEvent(floorNumber, destinationFloor);
-				try {
-					scheduler.setRequest(elevatorEvent);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}	
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		synchronized (scheduler) {
+			try {
+				RequestPairing pairing = Parser.getNextRequest(floorNumber);
+				while (pairing != null) {
+					FloorEvent event = pairing.getFloorRequest();
+					destinationMap.put(event, pairing.getDestinationFloor());
+					//send the first request in the queue to the scheduler
+					scheduler.setRequest(event);
+					
+					while (elevatorArrived()) {
+						wait();
+					}
+					
+					Thread.sleep(100);
+					
+					int destinationFloor = destinationMap.get(scheduler.getNewRequest());
+					ElevatorEvent elevatorEvent = new ElevatorEvent(floorNumber, destinationFloor);
+					try {
+						scheduler.setRequest(elevatorEvent);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}	
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 	}
 	
@@ -75,8 +77,9 @@ public class Floor implements Runnable {
 	 * (i,e, if the top of the request queue is an ElevatorEvent,
 	 * then prints a message to the console and returns 0 
 	 * @return floor at which an el
+	 * @throws InterruptedException 
 	 */
-	public boolean elevatorArrived() {
+	public boolean elevatorArrived() throws InterruptedException {
 		RequestEvent event = scheduler.peekRequests(); // get the event scheduler just fulfilled
 		if (event instanceof FloorEvent) {
 			FloorEvent floorEvent = (FloorEvent) event;
@@ -85,7 +88,10 @@ public class Floor implements Runnable {
 				return destinationFloor == floorNumber;
 			}
 		} else if (event instanceof ElevatorEvent) {
-			System.out.println("Passenger has reached their destination floor. Event: \n" + event.toString());
+			if (((ElevatorEvent) event).getDestinationFloor() == floorNumber) {
+				System.out.println("Passenger has reached their destination floor. Event: \n" + event.toString());
+				scheduler.getNewRequest(); // request has been fulfilled, so it can be removed from the queue
+			}
 		}
 		return false;
 	}

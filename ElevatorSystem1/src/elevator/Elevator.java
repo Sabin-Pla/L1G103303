@@ -15,7 +15,6 @@ import scheduler.Scheduler;
  */
 public class Elevator implements Runnable {
     private Scheduler scheduler;
-    private Queue<ElevatorEvent> requests;
     // requests must contain a valid queue of inputs
     // i.e, the destination floor in one event must be the source floor in the next
     private int currentFloor;
@@ -31,25 +30,33 @@ public class Elevator implements Runnable {
      * This method runs the elevator thread
      */
     @Override
-	public synchronized void run() {
-		while (true) {
-			try {
-				while (requests.isEmpty()) {
-						wait();
-				}
-				ElevatorEvent next = requests.poll();
-				System.out.println("Elevator has received a request from the Scheduler:\n" + 
-						next.toString()); 
-				fulfillRequest(next);
-				notifyAll();
-			} catch (InterruptedException e) {}
-        }
+	public void run() {
+    	synchronized (scheduler) {
+			while (true) {
+				try {
+					while (isStalled()) {
+							wait();
+					}
+					ElevatorEvent next = (ElevatorEvent) scheduler.peekRequests();
+					System.out.println("Elevator has received a request from the Scheduler:\n" + 
+							next.toString()); 
+					fulfillRequest(next);
+					notifyAll();
+				} catch (InterruptedException e) {}
+	        }
+    	}
 	}
     
+    private boolean isStalled() {
+    	if (scheduler.peekRequests() instanceof ElevatorEvent) {
+    		return true;
+    	}
+		return false;
+    }
+    
     private void fulfillRequest(ElevatorEvent request) throws InterruptedException {
-    	ElevatorEvent next = requests.poll();
-    	Thread.sleep(100); //simulate delay, remove next iteration
-    	currentFloor = next.getDestinationFloor();
-    	scheduler.processedEvent(next);
+    	Thread.sleep(100); //simulate delay
+    	currentFloor = request.getDestinationFloor();
+    	scheduler.processedEvent(request);
     }
 }
