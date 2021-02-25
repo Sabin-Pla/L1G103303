@@ -6,7 +6,7 @@ public class CarButtonEvent extends TimeEvent {
     private int destinationFloor;
 
     public CarButtonEvent(RequestElevatorEvent elevatorEvent, int destinationFloor) throws InvalidDirectionException {
-        super(elevatorEvent);
+        super(elevatorEvent.getEventTime());
 
         if (elevatorEvent.isGoingUp() && destinationFloor < elevatorEvent.getFloor()) {
             throw new InvalidDirectionException("Going down to a higher floor");

@@ -6,10 +6,6 @@ public class TimeEvent implements Comparable {
     private long eventTime;
     private static long PAST_EVENT_LENIENCY = 4000; // any events younger than this many MS are not in the past
 
-    public TimeEvent(RequestElevatorEvent requestElevatorEvent) {
-        this.eventTime = requestElevatorEvent.getEventTime();
-    }
-
     public TimeEvent(long eventTime) {
         this.eventTime = eventTime;
     }

@@ -20,7 +20,7 @@ public class IntegratedEventTest {
         assert (f != null);
         ArrayList<TimeEvent> events = Parser.getRequestFromFile(f);
 
-        assert (events.size() == NUM_EVENTS*2);
+        assert (events.size() == NUM_EVENTS * 2);
 
         long simulationStart = events.get(0).getEventTime();
         /*
