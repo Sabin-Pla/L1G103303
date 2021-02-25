@@ -8,7 +8,7 @@ public class TimeQueue extends PriorityBlockingQueue {
         if (!(o instanceof TimeEvent)) {
             throw new IllegalArgumentException("Objects inserted in TimeQueue must be TimeEvent objects");
         } else if (((TimeEvent) o).hasPassed() ) {
-            throw new Exception("Past events may not be inserted into TimeQueue");
+            throw new TimeException("Past events may not be inserted into TimeQueue");
         }
     }
 

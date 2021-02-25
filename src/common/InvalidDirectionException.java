@@ -9,6 +9,7 @@ public class InvalidDirectionException extends Exception {
 
     /**
      * Create an InvalidDirectionException
+     *
      * @param message the exception message
      */
     public InvalidDirectionException(String message) {
