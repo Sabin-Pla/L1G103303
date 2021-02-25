@@ -41,34 +41,7 @@ public class Floor implements Runnable {
 	 */
 	@Override
 	public void run() {
-		synchronized (scheduler) {
-			try {
-				RequestPairing pairing = Parser.getNextRequest(floorNumber);
-				while (pairing != null) {
-					FloorEvent event = pairing.getFloorRequest();
-					destinationMap.put(event, pairing.getDestinationFloor());
-					//send the first request in the queue to the scheduler
-					scheduler.setRequest(event);
-					
-					while (elevatorArrived()) {
-						wait();
-					}
-					
-					Thread.sleep(100);
-					
-					int destinationFloor = destinationMap.get(scheduler.getNewRequest());
-					ElevatorEvent elevatorEvent = new ElevatorEvent(floorNumber, destinationFloor);
-					try {
-						scheduler.setRequest(elevatorEvent);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-				}	
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
+
 	}
 	
 	/**
