@@ -55,4 +55,13 @@ public class TimeEvent implements Comparable {
     public boolean hasPassed() {
         return eventTime + PAST_EVENT_LENIENCY < time.now();
     }
+
+    /**
+     * Gets the time object used by all events
+     *
+     * @return the time object used by all events
+     */
+    public Time getTime() {
+        return this.time;
+    }
 }

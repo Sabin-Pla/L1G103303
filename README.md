@@ -45,4 +45,4 @@ The tests package contains unit tests to validate the behaviour of each class.
 
 One integrated test, IntegratedEventTest exists to demonstrate threads sequentially sending the events in a TimeQueue as they pass according to a simulated time scale of 60x speed.
 
-The events all expire exactly when they are supposed to. However, I was unable to get thread runners to send events as events in the queue expired. 
+The events all expire exactly when they are supposed to. The test runner successfully dequeues events shortly after their expiration time as intended. 
