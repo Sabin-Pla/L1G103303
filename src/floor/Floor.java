@@ -1,7 +1,10 @@
 package floor;
 
 import java.util.HashMap;
+import java.util.Queue;
 
+import common.Parser;
+import common.TimeQueue;
 import elevator.Elevator;
 import events.ElevatorEvent;
 import events.FloorEvent;
@@ -9,29 +12,67 @@ import events.RequestEvent;
 import scheduler.Scheduler;
 
 /**
- * The floor class sends a request to the scheduler and 
- * asks the scheduler for a new request
+ * The floor class sends requests to the schedulers and operates its floor lamp.
+ *
+ * Modelled by a state machine with 2 states:
+ *  OPERATING_LAMP and SENDING_EVENTS
+ *
+ * A Floor thread must be notified every time the elevator comes and leaves at its floor
  * 
  * @author Sabin Plaiasu
- * @version Iteration 1
+ * @version Iteration 2
  */
 public class Floor implements Runnable {
 	private static Scheduler scheduler;
 	private static Elevator elevator;
-	private HashMap<FloorEvent, Integer> destinationMap  = new HashMap<FloorEvent, Integer>(); // used to get car button for when elevator arrives
 	private int floorNumber;
-	
+	private TimeQueue eventQueue;
+	private Lamp lamp;
+	public enum State {OPERATING_LAMP, SENDING_EVENTS}
+	private State state;
+
 	/**
 	 * Constructor initializes all variables
 	 */
-	public Floor(int floorNumber) {
+	public Floor(int floorNumber, TimeQueue eventQueue, Lamp lamp) {
 		this.floorNumber = floorNumber;
+		this.eventQueue = eventQueue;
+		this.lamp = lamp;
+		if (eventQueue.isEmpty()) {
+			state = State.OPERATING_LAMP;
+		} else {
+			state = State.SENDING_EVENTS;
+		}
 	}
-	
+
+	/**
+	 * A Floor with a state machine for operating its floor lamp and sending requests to the scheduler.
+	 * A Floor thread must be notified every time the elevator comes and leaves at its floor
+	 *
+	 * @param floorNumber The number of floor (counting from floor being ground)
+	 * @param lamp The lamp at floor
+	 */
+	public Floor(int floorNumber, Lamp lamp) {
+		this.floorNumber = floorNumber;
+		this.eventQueue = new TimeQueue();
+		state = State.OPERATING_LAMP;
+		this.lamp = lamp;
+	}
+
+	/**
+	 * Sets the scheduler to be used by all Floors
+	 *
+	 * @param scheduler the scheduler to be used by all floors
+	 */
 	public void setScheduler(Scheduler scheduler) {
 		Floor.scheduler = scheduler;
 	}
-	
+
+	/**
+	 * Sets the elevator to be used by all floors
+	 *
+	 * @param elevator the elevator to be used all floors
+	 */
 	public void setElevator(Elevator elevator) {
 		Floor.elevator = elevator;
 	}
@@ -41,42 +82,48 @@ public class Floor implements Runnable {
 	 */
 	@Override
 	public void run() {
-
-	}
-	
-	/**
-	 * returns the floor at which an elevator arrived
-	 * If the elevator arrived to drop off a passenger 
-	 * (i,e, if the top of the request queue is an ElevatorEvent,
-	 * then prints a message to the console and returns 0 
-	 * @return floor at which an el
-	 * @throws InterruptedException 
-	 */
-	public boolean elevatorArrived() throws InterruptedException {
-		RequestEvent event = scheduler.peekRequests(); // get the event scheduler just fulfilled
-		if (event instanceof FloorEvent) {
-			FloorEvent floorEvent = (FloorEvent) event;
-			Integer destinationFloor = destinationMap.get(floorEvent);
-			if (destinationFloor != null) {
-				return destinationFloor == floorNumber;
-			}
-		} else if (event instanceof ElevatorEvent) {
-			if (((ElevatorEvent) event).getDestinationFloor() == floorNumber) {
-				System.out.println("Passenger has reached their destination floor. Event: \n" + event.toString());
-				scheduler.getNewRequest(); // request has been fulfilled, so it can be removed from the queue
+		while (true) {
+			switch (state) {
+				case OPERATING_LAMP:
+					operateLamp();
+					if (!eventQueue.isEmpty()) switchState();
+					break;
+				case SENDING_EVENTS:
+					try {
+						sendEvents();
+						switchState();
+					} catch (InterruptedException elevatorInterrupt) {
+						operateLamp();
+					}
 			}
 		}
-		return false;
 	}
-	
-	public void elevatorArrived(FloorEvent floorEvent) {
-		// elevator has arrived at floor to fulfill request (accept a destination floor)
-		int destinationFloor = destinationMap.get(floorEvent);
-		ElevatorEvent elevatorEvent = new ElevatorEvent(floorNumber, destinationFloor);
-		try {
-			scheduler.setRequest(elevatorEvent);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
+
+	public void switchState() {
+		if (state == State.OPERATING_LAMP) {
+			state = State.SENDING_EVENTS;
+		} else {
+			state = State.OPERATING_LAMP;
+		}
+	}
+
+	public void sendEvents() throws InterruptedException {
+		synchronized (eventQueue) {
+			while (!eventQueue.isEmpty()) {
+				while (!eventQueue.isEmpty() && !eventQueue.peekEvent().hasPassed()) {
+					eventQueue.peekEvent().getEventTime();
+					eventQueue.wait(eventQueue.waitTime());
+				}
+				scheduler.setRequest(eventQueue.poll());
+			}
+		}
+	}
+
+	public void operateLamp() {
+		if (elevator.getFloor() == floorNumber) {
+			lamp.turnOn();
+		} else {
+			lamp.turnOff();
 		}
 	}
 }

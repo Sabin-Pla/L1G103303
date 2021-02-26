@@ -1,6 +1,8 @@
 package elevator;
 
 import java.util.*;
+
+import common.CarButtonEvent;
 import events.ElevatorEvent;
 import scheduler.Scheduler;
 
@@ -18,7 +20,8 @@ public class Elevator implements Runnable {
     // requests must contain a valid queue of inputs
     // i.e, the destination floor in one event must be the source floor in the next
     private int currentFloor;
-    
+    private HashMap<Integer, FloorThread> threadMap;
+
     /**
      * Constructor
      */
