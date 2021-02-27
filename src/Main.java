@@ -76,6 +76,7 @@ public class Main {
             sensor.start();
         }
         elevator.setFloors(floors);
+        elevator.start();
 
         System.out.println("Starting simulation. Current time " + new Date(time.now()));
         time.restart();

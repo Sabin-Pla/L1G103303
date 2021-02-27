@@ -6,8 +6,6 @@ import floor.Floor;
 import scheduler.Scheduler;
 import common.Time;
 
-import static java.lang.Thread.sleep;
-
 
 /**
  * This class models the elevator
@@ -16,7 +14,7 @@ import static java.lang.Thread.sleep;
  * @version Iteration 2
  *
  */
-public class Elevator {
+public class Elevator extends Thread {
 
 	private final long MOVE_ONE_FLOOR_TIME = 10000;
 
@@ -25,6 +23,7 @@ public class Elevator {
 	private Floor[] floors;
 	private Door door;
 	static private Time time;
+	private int destFloor;
 
 	/**
 	 * Constructor
@@ -34,10 +33,40 @@ public class Elevator {
 		this.time = time;
 		this.currentFloor = currentFloor;
 		this.door = new Door();
+		this.destFloor = currentFloor;
 
-		synchronized (currentFloor) {
+		synchronized (this.currentFloor) {
 			this.currentFloor = currentFloor;
-			currentFloor.notifyAll();
+			this.currentFloor.notifyAll();
+		}
+	}
+
+	@Override
+	public void run() {
+		while (true) {
+			synchronized (currentFloor) {
+				while (currentFloor == destFloor) {
+					try {
+						currentFloor.wait();
+					} catch (InterruptedException e) {}
+				}
+
+				try {
+					sleep((long) (MOVE_ONE_FLOOR_TIME / time.getCompressionFactor()));
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+
+				if (currentFloor > destFloor) {
+					currentFloor -= 1;
+					System.out.println("Moving down a floor, now at " + currentFloor);
+				} else {
+					currentFloor += 1;
+					System.out.println("Moving up a floor, now at " + currentFloor);
+				}
+
+				currentFloor.notifyAll();
+			}
 		}
 	}
 
@@ -58,29 +87,9 @@ public class Elevator {
 	 * @param destFloor Destination Floor
 	 */
 	public void move(int destFloor) {
-		try {
-			System.out.println("\nElevator : destination " + destFloor);
-			Floor floor = floors[currentFloor];
-			synchronized (floor.getEventQueue()) {
-				floor.getEventQueue().notify();
-			}
-			door.close();
-			while (currentFloor != destFloor) {
-				sleep((long) (MOVE_ONE_FLOOR_TIME / time.getCompressionFactor()));
-				if (currentFloor > destFloor) {
-					currentFloor -= 1;
-					System.out.println("Moving down a floor");
-				} else {
-					currentFloor += 1;
-					System.out.println("Moving up a floor");
-				}
-			}
-			door.open();
-			synchronized (floor.getEventQueue()) {
-				floor.getEventQueue().notify();
-			}
-		} catch (InterruptedException e) {
-			e.printStackTrace();
+		this.destFloor = destFloor;
+		synchronized (currentFloor) {
+			currentFloor.notifyAll();
 		}
 	}
 
@@ -97,5 +106,9 @@ public class Elevator {
 		} catch (InterruptedException | ElevatorException e) {
 			e.printStackTrace();
 		}
+	}
+
+	public boolean isStopped() {
+		return door.isOpen;
 	}
 }

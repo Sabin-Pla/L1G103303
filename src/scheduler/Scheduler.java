@@ -21,6 +21,8 @@ public class Scheduler implements Runnable {
 	private Elevator elevator;
 	private Time time;
 
+	private int lastSensor; // the floor at which the last sensor was activated
+
 	private int nextDestination;
 	private int nextExpectedFloor;
 
@@ -30,8 +32,6 @@ public class Scheduler implements Runnable {
 	public Scheduler(Time time) {
 		this.time = time;
 		timeQueue = new TimeQueue();
-		timeEvent = null;
-		elevator = null;
 	}
 
 	/**
@@ -41,6 +41,7 @@ public class Scheduler implements Runnable {
 	 */
 	public void setElevator(Elevator elevator) {
 		this.elevator = elevator;
+		this.lastSensor = elevator.getCurrentFloor();
 	}
 
 	/**
@@ -126,8 +127,10 @@ public class Scheduler implements Runnable {
 	}
 
 	public synchronized void sensorActivated(int floorNumber) {
-		System.out.print("Elevator at floor " + floorNumber);
-		notifyAll();
+		if (floorNumber != lastSensor) {
+			System.out.println("Scheduler:  Elevator at floor " + floorNumber);
+			notifyAll();
+		}
 	}
 
 	/**

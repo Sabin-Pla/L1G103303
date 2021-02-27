@@ -10,7 +10,6 @@ public class Sensor extends Thread {
     private Floor floor;
 
     public Sensor(Elevator elevator, Floor floor) {
-        this.scheduler = scheduler;
         this.elevator = elevator;
         this.floor = floor;
     }
@@ -27,20 +26,21 @@ public class Sensor extends Thread {
 
     @Override
     public void run() {
+        Integer currentFloor = elevator.getFloor();
+        int floorNumber = floor.getFloorNumber();
         while (true) {
-            synchronized (elevator.getFloor()) {
-                int currentFloor = elevator.getFloor();
-                int floorNumber = floor.getFloorNumber();
-                try {
-                    while (!(currentFloor == floorNumber + 1) || !(currentFloor == floorNumber - 1)) {
-                        elevator.getFloor().wait();
-                        while (!(elevator.getFloor() == floorNumber)) {
-                            elevator.getFloor().wait();
-                        }
-                    }
-                } catch (InterruptedException elevatorArrived) {}
-                floor.getEventQueue().notify();
+            synchronized (currentFloor) {
+                while (currentFloor != floorNumber) {
+                    try {
+                        currentFloor.wait();
+                    } catch (InterruptedException elevatorArrived) {}
+                }
+
+                synchronized (floor.getEventQueue()) {
+                    floor.getEventQueue().notify();
+                }
                 scheduler.sensorActivated(floorNumber); // for arrival
+                currentFloor.notifyAll();
             }
         }
     }

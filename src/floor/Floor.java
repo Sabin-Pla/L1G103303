@@ -28,6 +28,7 @@ public class Floor extends Thread {
 	private int floorNumber;
 	private TimeQueue eventQueue;
 	private Lamp lamp;
+
 	public enum State {OPERATING_LAMP, SENDING_EVENTS}
 	private State state;
 	private TimeQueue carButtonEvents;
@@ -62,6 +63,15 @@ public class Floor extends Thread {
 		this.state = State.OPERATING_LAMP;
 		this.lamp = lamp;
 		this.carButtonEvents = new TimeQueue();
+	}
+
+	/**
+	 * gets the elevator
+	 *
+	 * @return the elevator
+	 */
+	public Elevator getElevator() {
+		return  this.elevator;
 	}
 
 	/**
@@ -180,7 +190,7 @@ public class Floor extends Thread {
 	 *
 	 */
 	public void elevatorArrival() {
-		if (elevator.getFloor() == floorNumber) {
+		if (elevator.getFloor() == floorNumber && elevator.isStopped()) {
 			lamp.turnOn();
 			if (!carButtonEvents.isEmpty()) {
 				CarButtonEvent event = (CarButtonEvent) carButtonEvents.nextEvent();
