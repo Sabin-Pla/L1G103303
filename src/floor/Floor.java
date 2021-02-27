@@ -91,15 +91,15 @@ public class Floor implements Runnable {
 		while (true) {
 			switch (state) {
 				case OPERATING_LAMP:
-					operateLamp();
+					elevatorArrival();
 					if (!eventQueue.isEmpty()) switchState();
 					break;
 				case SENDING_EVENTS:
 					try {
 						sendEvents();
-						switchState();
+						switchState(); // reached if sendEvents() naturally returned by condition !eventQueue.isEmpty()
 					} catch (InterruptedException elevatorInterrupt) {
-						operateLamp();
+						elevatorArrival();
 					}
 			}
 		}
@@ -113,10 +113,16 @@ public class Floor implements Runnable {
 		}
 	}
 
+	/**
+	 * Sends requestElevatorEvents as they expire off the event queue.
+	 * Once the events are said, add their corresponding CarButtonPressEvent to the car button event queue
+	 *
+	 * @throws InterruptedException if the elevator has arrived
+	 */
 	public void sendEvents() throws InterruptedException {
 		synchronized (eventQueue) {
 			while (!eventQueue.isEmpty()) {
-				while (!eventQueue.isEmpty() && !eventQueue.peekEvent().hasPassed()) {
+				while (!eventQueue.peekEvent().hasPassed()) {
 					eventQueue.peekEvent().getEventTime();
 					long waitTime = eventQueue.waitTime();
 					if (waitTime >= MINIMUM_WAIT_TIME) {
@@ -132,7 +138,15 @@ public class Floor implements Runnable {
 		}
 	}
 
-	public void operateLamp(){
+	/**
+	 * Performs the actions needed once an elevator arrives.
+	 *
+	 * Turn on floor lamp if elevator arrived at floor
+	 *
+	 * If there are car button events, dispatch those to the elevator/scheduler.
+	 *
+	 */
+	public void elevatorArrival(){
 		if (elevator.getFloor() == floorNumber) {
 			lamp.turnOn();
 			if (!carButtonEvents.isEmpty()) {
@@ -151,9 +165,5 @@ public class Floor implements Runnable {
 			lamp.turnOff();
 		}
 
-	}
-
-	public TimeQueue getEventQueue() {
-		return eventQueue;
 	}
 }
