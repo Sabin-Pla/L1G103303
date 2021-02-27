@@ -3,6 +3,7 @@ package scheduler;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
+import common.TimeEvent;
 import events.ElevatorEvent;
 import events.FloorEvent;
 import events.RequestEvent;
@@ -79,8 +80,7 @@ public class Scheduler implements Runnable {
 	 * @param request
 	 * @throws InterruptedException
 	 */
-	public synchronized void setRequest(RequestEvent request) throws InterruptedException {
-		requestQueue.add(request);
+	public synchronized void setRequest(TimeEvent request) throws InterruptedException {
 		System.out.println("Scheduler has received a request from " + Thread.currentThread().getName() + ":\n" + request);
 		notifyAll();
 	}

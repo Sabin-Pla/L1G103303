@@ -68,13 +68,16 @@ public class Parser {
                     pressDate = calendar.getTime();
                 }
 
+                CarButtonEvent carButtonEvent = new CarButtonEvent(pressDate.toInstant().toEpochMilli(),
+                        destinationFloor);
+
             	RequestElevatorEvent requestElevatorEvent = new RequestElevatorEvent(
             	        sourceFloor,
-                        pressDate.toInstant().toEpochMilli(),
-                        goingUp);
+                        goingUp,
+                        carButtonEvent);
 
                 events.add(requestElevatorEvent);
-                events.add(new CarButtonEvent(requestElevatorEvent, destinationFloor));
+                events.add(carButtonEvent);
             }
             scanner.close();
         } catch (FileNotFoundException | InvalidDirectionException e) {

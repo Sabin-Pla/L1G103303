@@ -42,4 +42,13 @@ public class Time {
         long actualDifference = System.currentTimeMillis() - actualStartTime;
         return (long) (actualDifference * compressionFactor) + startTime;
     }
+
+    /**
+     * Returns the compression factor of the time object
+     *
+     * @return the multiplicative amount by which time should be distorted
+     */
+    public double getCompressionFactor() {
+        return this.compressionFactor;
+    }
 }
