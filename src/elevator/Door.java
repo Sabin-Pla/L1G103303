@@ -6,6 +6,7 @@ public class Door {
 
     public Door(){
         this.isClosed = false;
+
     }
 
     /**
