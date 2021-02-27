@@ -1,9 +1,6 @@
 package tests;
 
-import common.Parser;
-import common.Time;
-import common.TimeEvent;
-import common.TimeQueue;
+import common.*;
 import events.ElevatorEvent;
 import org.junit.Before;
 import org.junit.Test;
@@ -17,7 +14,7 @@ import java.util.Date;
 
 public class TimeQueueTest {
 
-    private ArrayList<TimeEvent> events;
+    private ArrayList<RequestElevatorEvent> events;
 
     @Before
     public void getRequests() {

@@ -29,9 +29,9 @@ public class Parser {
      * @param requestFile The file to read request from
      * @return An array queue of all the requests from the file
      */
-    public static ArrayList<TimeEvent> getRequestFromFile(File requestFile) {
+    public static ArrayList<RequestElevatorEvent> getRequestFromFile(File requestFile) {
    
-        ArrayList<TimeEvent> events = new ArrayList<>();
+        ArrayList<RequestElevatorEvent> events = new ArrayList<>();
         Scanner scanner;
 
         try {
@@ -77,7 +77,6 @@ public class Parser {
                         carButtonEvent);
 
                 events.add(requestElevatorEvent);
-                events.add(carButtonEvent);
             }
             scanner.close();
         } catch (FileNotFoundException | InvalidDirectionException e) {
