@@ -7,7 +7,6 @@ import org.junit.Test;
 import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Date;
 
 public class IntegratedEventTest {
 
@@ -18,9 +17,9 @@ public class IntegratedEventTest {
         URL resource = getClass().getResource("integratedTestEvents.txt");
         File f =  new File(resource.getFile());
         assert (f != null);
-        ArrayList<TimeEvent> events = Parser.getRequestFromFile(f);
+        ArrayList<RequestElevatorEvent> events = Parser.getRequestFromFile(f);
 
-        assert (events.size() == NUM_EVENTS * 2);
+        assert (events.size() == NUM_EVENTS);
 
         long simulationStart = events.get(0).getEventTime();
         /*
@@ -33,12 +32,9 @@ public class IntegratedEventTest {
         TimeQueue queueElevator = new TimeQueue();
         TimeQueue queueFloor = new TimeQueue();
 
-        for (TimeEvent event : events) {
-            if (event instanceof CarButtonEvent) {
-                assert queueElevator.add(event);
-            } else if (event instanceof RequestElevatorEvent) {
-                assert queueFloor.add(event);
-            }
+        for (RequestElevatorEvent requestElevatorEvent : events) {
+            assert queueElevator.add(requestElevatorEvent);
+            assert queueFloor.add(requestElevatorEvent.getCarButtonEvent());
         }
 
         TestRunner elevatorRunner = new TestRunner(queueElevator);
