@@ -1,14 +1,11 @@
 package floor;
 
-import java.util.HashMap;
-import java.util.Queue;
-
 import common.*;
 import elevator.Elevator;
-import events.ElevatorEvent;
-import events.FloorEvent;
-import events.RequestEvent;
+
 import scheduler.Scheduler;
+
+import java.util.Date;
 
 /**
  * The floor class sends requests to the schedulers and operates its floor lamp.
@@ -21,10 +18,10 @@ import scheduler.Scheduler;
  * @author Sabin Plaiasu
  * @version Iteration 2
  */
-public class Floor implements Runnable {
+public class Floor extends Thread {
 
 	// the minimum amount of time between which a floor thread should check to see if it should send events
-	private final long MINIMUM_WAIT_TIME = 50;
+	private final long MINIMUM_WAIT_TIME = 5;
 	private final long MAXIMUM_WAIT_TIME = 120000; // max amount of time (ms) a thread should wait for an elevator
 	private static Scheduler scheduler;
 	private static Elevator elevator;
@@ -34,6 +31,7 @@ public class Floor implements Runnable {
 	public enum State {OPERATING_LAMP, SENDING_EVENTS}
 	private State state;
 	private TimeQueue carButtonEvents;
+	private static int numFloors;
 
 	/**
 	 * Constructor initializes all variables
@@ -47,7 +45,8 @@ public class Floor implements Runnable {
 		} else {
 			state = State.SENDING_EVENTS;
 		}
-		carButtonEvents = new TimeQueue();
+		this.carButtonEvents = new TimeQueue();
+		this.setName("Floor " + floorNumber);
 	}
 
 	/**
@@ -60,9 +59,27 @@ public class Floor implements Runnable {
 	public Floor(int floorNumber, Lamp lamp) {
 		this.floorNumber = floorNumber;
 		this.eventQueue = new TimeQueue();
-		state = State.OPERATING_LAMP;
+		this.state = State.OPERATING_LAMP;
 		this.lamp = lamp;
-		carButtonEvents = new TimeQueue();
+		this.carButtonEvents = new TimeQueue();
+	}
+
+	/**
+	 * Returns the event queue
+	 *
+	 * @return the event queue
+	 */
+	public TimeQueue getEventQueue() {
+		return eventQueue;
+	}
+
+	/**
+	 * Gets the number of the floor
+	 *
+	 * @return the floor number
+	 */
+	public int getFloorNumber() {
+		return floorNumber;
 	}
 
 	/**
@@ -82,7 +99,16 @@ public class Floor implements Runnable {
 	public void setElevator(Elevator elevator) {
 		Floor.elevator = elevator;
 	}
-	
+
+	/**
+	 * Sets the number of floors
+	 *
+	 * @param numFloors number of floors in the building
+	 */
+	public void setNumFloors(int numFloors) {
+		this.numFloors = numFloors;
+	}
+
 	/**
 	 * Runs the floor thread
 	 */
@@ -125,14 +151,21 @@ public class Floor implements Runnable {
 				while (!eventQueue.peekEvent().hasPassed()) {
 					eventQueue.peekEvent().getEventTime();
 					long waitTime = eventQueue.waitTime();
-					if (waitTime >= MINIMUM_WAIT_TIME) {
-						eventQueue.wait(waitTime);
+					if (waitTime <= MINIMUM_WAIT_TIME * eventQueue.peekEvent().getTime().getCompressionFactor()) {
+						break;
 					} else {
 						eventQueue.wait(MINIMUM_WAIT_TIME);
 					}
 				}
 				TimeEvent nextEvent = eventQueue.nextEvent();
-				scheduler.setRequest(nextEvent);
+				System.out.println("\nFloor:\nSending event to scheduler from floor " + floorNumber);
+				System.out.println(nextEvent);
+				try {
+					scheduler.setRequest(nextEvent);
+				} catch (ElevatorException e) {
+					System.out.println(new Date(nextEvent.getTime().now()));
+					e.printStackTrace();
+				}
 				carButtonEvents.add(((RequestElevatorEvent) nextEvent).getCarButtonEvent());
 			}
 		}
@@ -146,15 +179,15 @@ public class Floor implements Runnable {
 	 * If there are car button events, dispatch those to the elevator/scheduler.
 	 *
 	 */
-	public void elevatorArrival(){
+	public void elevatorArrival() {
 		if (elevator.getFloor() == floorNumber) {
 			lamp.turnOn();
 			if (!carButtonEvents.isEmpty()) {
 				CarButtonEvent event = (CarButtonEvent) carButtonEvents.nextEvent();
 				if (event.getEventTime() - event.getTime().now() > MAXIMUM_WAIT_TIME) {
 					try {
-						throw new ElevatorWaitTimeException("Passenger waited more than " + MAXIMUM_WAIT_TIME + " ms");
-					} catch (ElevatorWaitTimeException e) {
+						throw new ElevatorException("Passenger waited more than " + MAXIMUM_WAIT_TIME + " ms");
+					} catch (ElevatorException e) {
 						e.printStackTrace();
 						return;
 					}
@@ -164,6 +197,5 @@ public class Floor implements Runnable {
 		} else {
 			lamp.turnOff();
 		}
-
 	}
 }

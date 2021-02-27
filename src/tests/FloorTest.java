@@ -33,27 +33,29 @@ public class FloorTest {
         Time time = new Time(Time.SECOND_TO_MINUTE, simulationStart - 500);
         events.get(0).setTime(time);
 
-        Scheduler scheduler = new Scheduler();
-        Elevator elevator = new Elevator(scheduler);
+        Scheduler scheduler = new Scheduler(time);
+        Elevator elevator = new Elevator(scheduler, 1, time);
 
         ArrayList<Thread> floorThreads = new ArrayList<>();
         ArrayList<Floor> floors = new ArrayList<>();
+
         for (int i=1; i < 6; i++) {
             TimeQueue queueFloor = new TimeQueue();
             for (RequestElevatorEvent event : events) {
                 if (event.getFloor() == i) queueFloor.add(event);
             }
-
             Floor floor = new Floor(i, queueFloor, new Lamp(false));
-
             floors.add(floor);
             floorThreads.add(new Thread(floor));
         }
+
         floors.get(0).setScheduler(scheduler);
         floors.get(0).setElevator(elevator);
+        floors.get(0).setNumFloors(10);
 
         time.restart();
         for (Thread thread : floorThreads) thread.start();
+
     }
 }
 

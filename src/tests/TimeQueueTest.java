@@ -1,7 +1,7 @@
 package tests;
 
 import common.*;
-import events.ElevatorEvent;
+
 import org.junit.Before;
 import org.junit.Test;
 

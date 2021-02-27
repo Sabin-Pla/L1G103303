@@ -1,75 +1,100 @@
 package elevator;
 
-import java.util.*;
-
 import common.CarButtonEvent;
-import events.ElevatorEvent;
+import floor.ElevatorException;
+import floor.Floor;
 import scheduler.Scheduler;
+import common.Time;
+
+import static java.lang.Thread.sleep;
+
 
 /**
  * This class models the elevator
- * in iteration 1, the elevator receives info from the scheduler,
- * uses it and sends it back to the scheduler
- * 
+ *
  * @author Mmedara Josiah, Sabin Plaiasu
- * @version Iteration 1
+ * @version Iteration 2
  *
  */
-public class Elevator implements Runnable {
-    private Scheduler scheduler;
-    // requests must contain a valid queue of inputs
-    // i.e, the destination floor in one event must be the source floor in the next
-    private int currentFloor;
+public class Elevator {
 
-    /**
-     * Constructor
-     */
-    public Elevator(Scheduler scheduler) {
-        this.scheduler = scheduler;
-    }
-    
-    /**
-     * This method runs the elevator thread
-     */
-    @Override
-	public void run() {
-    	synchronized (scheduler) {
-			while (true) {
-				try {
-					while (isStalled()) {
-							wait();
-					}
-					ElevatorEvent next = (ElevatorEvent) scheduler.peekRequests();
-					System.out.println("Elevator has received a request from the Scheduler:\n" + 
-							next.toString()); 
-					fulfillRequest(next);
-					notifyAll();
-				} catch (InterruptedException e) {}
-	        }
-    	}
+	private final long MOVE_ONE_FLOOR_TIME = 10000;
+
+	private Scheduler scheduler;
+	private Integer currentFloor;
+	private Floor[] floors;
+	private Door door;
+	static private Time time;
+
+	/**
+	 * Constructor
+	 */
+	public Elevator(Scheduler scheduler, Integer currentFloor, Time time) {
+		this.scheduler = scheduler;
+		this.time = time;
+		this.currentFloor = currentFloor;
+		this.door = new Door();
+
+		synchronized (currentFloor) {
+			this.currentFloor = currentFloor;
+			currentFloor.notifyAll();
+		}
 	}
-    
-    private boolean isStalled() {
-    	if (scheduler.peekRequests() instanceof ElevatorEvent) {
-    		return true;
-    	}
-		return false;
-    }
-    
-    private void fulfillRequest(ElevatorEvent request) throws InterruptedException {
-    	Thread.sleep(100); //simulate delay
-    	currentFloor = request.getDestinationFloor();
-    	scheduler.processedEvent(request);
-    }
 
-	public int getFloor() {
-    	return currentFloor;
+	public void setFloors(Floor[] floors) {
+		this.floors = floors;
+	}
+
+	/**
+	 *
+	 * @return Current floor
+	 */
+	public Integer getCurrentFloor(){
+		return currentFloor;
+	}
+
+	/**
+	 * This method represents the floor which elevator is moving to.
+	 * @param destFloor Destination Floor
+	 */
+	public void move(int destFloor) {
+		try {
+			System.out.println("\nElevator : destination " + destFloor);
+			Floor floor = floors[currentFloor];
+			synchronized (floor.getEventQueue()) {
+				floor.getEventQueue().notify();
+			}
+			door.close();
+			while (currentFloor != destFloor) {
+				sleep((long) (MOVE_ONE_FLOOR_TIME / time.getCompressionFactor()));
+				if (currentFloor > destFloor) {
+					currentFloor -= 1;
+					System.out.println("Moving down a floor");
+				} else {
+					currentFloor += 1;
+					System.out.println("Moving up a floor");
+				}
+			}
+			door.open();
+			synchronized (floor.getEventQueue()) {
+				floor.getEventQueue().notify();
+			}
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
+
+
+	public Integer getFloor() {
+		synchronized (currentFloor) {
+			return currentFloor;
+		}
 	}
 
 	public void sendEvent(CarButtonEvent event) {
 		try {
 			scheduler.setRequest(event);
-		} catch (InterruptedException e) {
+		} catch (InterruptedException | ElevatorException e) {
 			e.printStackTrace();
 		}
 	}
