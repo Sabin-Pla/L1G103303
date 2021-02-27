@@ -2,9 +2,11 @@ package tests;
 
 import common.*;
 
+import elevator.Elevator;
 import floor.Floor;
 import floor.Lamp;
 import org.junit.Test;
+import scheduler.Scheduler;
 
 import java.io.File;
 import java.net.URL;
@@ -31,6 +33,9 @@ public class FloorTest {
         Time time = new Time(Time.SECOND_TO_MINUTE, simulationStart - 500);
         events.get(0).setTime(time);
 
+        Scheduler scheduler = new Scheduler();
+        Elevator elevator = new Elevator(scheduler);
+
         ArrayList<Thread> floorThreads = new ArrayList<>();
         ArrayList<Floor> floors = new ArrayList<>();
         for (int i=1; i < 6; i++) {
@@ -44,6 +49,8 @@ public class FloorTest {
             floors.add(floor);
             floorThreads.add(new Thread(floor));
         }
+        floors.get(0).setScheduler(scheduler);
+        floors.get(0).setElevator(elevator);
 
         time.restart();
         for (Thread thread : floorThreads) thread.start();
