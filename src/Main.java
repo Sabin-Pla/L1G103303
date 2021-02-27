@@ -1,6 +1,7 @@
 import common.Parser;
 import elevator.Elevator;
 import floor.Floor;
+import floor.Lamp;
 import scheduler.Scheduler;
 
 import java.io.File;
@@ -33,7 +34,9 @@ public class Main {
         ArrayList<Thread> floorThreads = new ArrayList<>();
 
         for (int i=0; i < floors; i++) {
-            Floor floor = new Floor(i+1);
+            Lamp lamp = new Lamp(false);
+            if (i==0) lamp.turnOn();
+            Floor floor = new Floor(i+1, lamp);
             Thread thread = new Thread(floor, "Floor " + i + 1);
             floorThreads.add(thread);
             if (i == 0) floor.setScheduler(scheduler);

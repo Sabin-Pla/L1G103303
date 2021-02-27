@@ -44,6 +44,10 @@ public class TimeQueue extends PriorityBlockingQueue {
         }
     }
 
+    public TimeEvent nextEvent() {
+        return (TimeEvent) this.poll();
+    }
+
     public TimeEvent peekEvent() {
         return (TimeEvent) this.peek();
     }

@@ -3,8 +3,7 @@ package floor;
 import java.util.HashMap;
 import java.util.Queue;
 
-import common.Parser;
-import common.TimeQueue;
+import common.*;
 import elevator.Elevator;
 import events.ElevatorEvent;
 import events.FloorEvent;
@@ -23,6 +22,7 @@ import scheduler.Scheduler;
  * @version Iteration 2
  */
 public class Floor implements Runnable {
+	private static long MAXIMUM_WAIT_TIME = 120000; // max amount of time (ms) a thread should wait for an elevator
 	private static Scheduler scheduler;
 	private static Elevator elevator;
 	private int floorNumber;
@@ -30,6 +30,7 @@ public class Floor implements Runnable {
 	private Lamp lamp;
 	public enum State {OPERATING_LAMP, SENDING_EVENTS}
 	private State state;
+	private TimeQueue carButtonEvents;
 
 	/**
 	 * Constructor initializes all variables
@@ -43,6 +44,7 @@ public class Floor implements Runnable {
 		} else {
 			state = State.SENDING_EVENTS;
 		}
+		carButtonEvents = new TimeQueue();
 	}
 
 	/**
@@ -57,6 +59,7 @@ public class Floor implements Runnable {
 		this.eventQueue = new TimeQueue();
 		state = State.OPERATING_LAMP;
 		this.lamp = lamp;
+		carButtonEvents = new TimeQueue();
 	}
 
 	/**
@@ -107,23 +110,50 @@ public class Floor implements Runnable {
 		}
 	}
 
+	static final long MINIMUM_WAIT_TIME = 50; // the minimum amount of time between which a floor thread should
+	// check to see if it should send events
+
 	public void sendEvents() throws InterruptedException {
 		synchronized (eventQueue) {
 			while (!eventQueue.isEmpty()) {
 				while (!eventQueue.isEmpty() && !eventQueue.peekEvent().hasPassed()) {
 					eventQueue.peekEvent().getEventTime();
-					eventQueue.wait(eventQueue.waitTime());
+					long waitTime = eventQueue.waitTime();
+					if (waitTime >= MINIMUM_WAIT_TIME) {
+						eventQueue.wait(waitTime);
+					} else {
+						eventQueue.wait(MINIMUM_WAIT_TIME);
+					}
 				}
-				scheduler.setRequest(eventQueue.poll());
+				TimeEvent nextEvent = eventQueue.nextEvent();
+				scheduler.setRequest(nextEvent);
+				carButtonEvents.add(((RequestElevatorEvent) nextEvent).getCarButtonEvent());
 			}
 		}
 	}
 
-	public void operateLamp() {
+	public void operateLamp(){
 		if (elevator.getFloor() == floorNumber) {
 			lamp.turnOn();
+			if (!carButtonEvents.isEmpty()) {
+				CarButtonEvent event = (CarButtonEvent) carButtonEvents.nextEvent();
+				if (event.getEventTime() - event.getTime().now() > MAXIMUM_WAIT_TIME) {
+					try {
+						throw new ElevatorWaitTimeException("Passenger waited more than " + MAXIMUM_WAIT_TIME + " ms");
+					} catch (ElevatorWaitTimeException e) {
+						e.printStackTrace();
+						return;
+					}
+ 				}
+				elevator.sendEvent(event);
+			}
 		} else {
 			lamp.turnOff();
 		}
+
+	}
+
+	public TimeQueue getEventQueue() {
+		return eventQueue;
 	}
 }

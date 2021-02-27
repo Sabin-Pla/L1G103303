@@ -64,4 +64,5 @@ public class TimeEvent implements Comparable {
     public Time getTime() {
         return this.time;
     }
+
 }
