@@ -128,7 +128,8 @@ public class Scheduler implements Runnable {
 
 	public synchronized void sensorActivated(int floorNumber) {
 		if (floorNumber != lastSensor) {
-			System.out.println("Scheduler:  Elevator at floor " + floorNumber);
+			System.out.println("\nScheduler:  Elevator at floor " + floorNumber);
+			lastSensor = floorNumber;
 			notifyAll();
 		}
 	}

@@ -26,21 +26,31 @@ public class Sensor extends Thread {
 
     @Override
     public void run() {
-        Integer currentFloor = elevator.getFloor();
         int floorNumber = floor.getFloorNumber();
         while (true) {
-            synchronized (currentFloor) {
-                while (currentFloor != floorNumber) {
+            synchronized (elevator) {
+                while (elevator.getFloor() != floorNumber) {
                     try {
-                        currentFloor.wait();
-                    } catch (InterruptedException elevatorArrived) {}
+                        elevator.wait();
+                    } catch (InterruptedException elevatorArrived) {
+                        System.out.println("Sensor interrupted " + floor.getFloorNumber());
+                    }
                 }
 
                 synchronized (floor.getEventQueue()) {
                     floor.getEventQueue().notify();
                 }
+
                 scheduler.sensorActivated(floorNumber); // for arrival
-                currentFloor.notifyAll();
+                elevator.notifyAll();
+
+                while (elevator.getFloor() == floorNumber) {
+                    try {
+                        elevator.wait();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
             }
         }
     }
