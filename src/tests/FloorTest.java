@@ -15,6 +15,7 @@ import java.util.ArrayList;
 public class FloorTest {
 
     final int NUM_EVENTS = 4;
+    int currentFloor = 1;
 
     @Test
     public void FloorThreadTest() {
@@ -34,7 +35,7 @@ public class FloorTest {
         events.get(0).setTime(time);
 
         Scheduler scheduler = new Scheduler();
-        Elevator elevator = new Elevator(scheduler);
+        Elevator elevator = new Elevator(scheduler, currentFloor);
 
         ArrayList<Thread> floorThreads = new ArrayList<>();
         ArrayList<Floor> floors = new ArrayList<>();

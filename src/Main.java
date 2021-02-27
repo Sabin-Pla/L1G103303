@@ -25,7 +25,8 @@ public class Main {
         Parser.getRequestFromFile(requestFile);
         Scheduler scheduler = new Scheduler();
         Thread schedulerThread = new Thread(scheduler, "Scheduler");
-        Elevator elevator = new Elevator(scheduler);
+        Integer currentFloor = 1;
+        Elevator elevator = new Elevator(scheduler, currentFloor);
         Thread elevatorThread = new Thread(elevator, "Elevator");
 
         schedulerThread.start();

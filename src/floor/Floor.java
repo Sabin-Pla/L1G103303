@@ -26,6 +26,8 @@ public class Floor implements Runnable {
 	// the minimum amount of time between which a floor thread should check to see if it should send events
 	private final long MINIMUM_WAIT_TIME = 50;
 	private final long MAXIMUM_WAIT_TIME = 120000; // max amount of time (ms) a thread should wait for an elevator
+	private final int lowestLevel = 1;
+	private final int highestLevel = 1;
 	private static Scheduler scheduler;
 	private static Elevator elevator;
 	private int floorNumber;
@@ -165,5 +167,9 @@ public class Floor implements Runnable {
 			lamp.turnOff();
 		}
 
+	}
+
+	public TimeQueue getEventQueue(){
+		return eventQueue;
 	}
 }
