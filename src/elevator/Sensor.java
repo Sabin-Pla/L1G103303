@@ -32,7 +32,8 @@ public class Sensor extends Thread {
                 while (elevator.getFloor() != floorNumber) {
                     try {
                         elevator.wait();
-                    } catch (InterruptedException elevatorArrived) {
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
                 }
 

@@ -22,6 +22,7 @@ public class Scheduler implements Runnable {
 	private Time time;
 
 	private int lastSensor; // the floor at which the last sensor was activated
+	private int lastFloor;
 
 	private int nextDestination;
 	private int nextExpectedFloor;
@@ -88,6 +89,7 @@ public class Scheduler implements Runnable {
 			} catch (InterruptedException elevatorMoved) {}
 
 			int currentFloor = lastSensor;
+
 			System.out.println("\nScheduler: Monitoring... elevator at floor " + currentFloor);
 			if (currentFloor == nextDestination) {
 				System.out.println("\nScheduler: Destination floor reached");
@@ -97,7 +99,7 @@ public class Scheduler implements Runnable {
 					state = State.HANDLING_EVENT;
 				}
 				return;
-			} else if (currentFloor != nextExpectedFloor) {
+			} else if (currentFloor != nextExpectedFloor && lastFloor != currentFloor) {
 				throw new ElevatorException("Elevator not going in dispatched direction : " +
 						currentFloor + " " + nextExpectedFloor);
 			}
@@ -107,6 +109,8 @@ public class Scheduler implements Runnable {
 			} else {
 				nextExpectedFloor = currentFloor - 1;
 			}
+
+			lastFloor = currentFloor;
 		}
 		throw new ElevatorException("Elevator took too long to fulfill request");
 	}

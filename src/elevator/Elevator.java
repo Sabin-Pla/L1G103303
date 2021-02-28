@@ -43,6 +43,7 @@ public class Elevator extends Thread {
 			while (currentFloor == destinationFloor) {
 				door.open();
 				try {
+					notifyAll(); // let sensors know elevator has stopped
 					wait();
 				} catch (InterruptedException e) {
 					door.open();
