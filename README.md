@@ -1,6 +1,4 @@
-# Project Iteration 1 : SYSC3303 L1, GROUP 10
-
-# THE READ ME IN ITS CURRENT STATE IS NOT CURRENTLY COMPLETE. THIS DOCUMENT CONTAINS ALL THE INFORMATION I INTEND TO IMPART ON CODE COLLABORATORS WITH THIS MR. UPON SUBMITTING A MERGE REQUEST, IT MIGHT BE A GOOD IDEA TO UPDATE THIS README YOURSELF WITH WHATEVER BEHAVIOUR YOU ADDED. REMOVE THIS NOTICE ONCE THE README IS COMPLETE.
+# Project Iteration 2 : SYSC3303 L1, GROUP 10
 
 Simulation of a real time elevator system. 
 
@@ -107,4 +105,12 @@ The tests package contains unit tests to validate the behaviour of each class.
 
 One integrated test, IntegratedEventTest exists to demonstrate threads sequentially sending the events in a TimeQueue as they pass according to a simulated time scale of 60x speed.
 
-The events all expire exactly when they are supposed to. However, I was unable to get thread runners to send events as events in the queue expired. 
+# Setup & Test Instructions
+
+1. Extract the zip file to your desktop.
+2. In eclipse: File -> Import -> General -> Existing Projects into Workspace -> Select root directory -> Browse
+3. Select the extracted folder and then click 'Finish'
+4. Navigate to the 'tests' package 
+5. You will now see all of the test files and are able to run them at your discretion 
+
+
