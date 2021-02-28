@@ -23,7 +23,7 @@ public class Elevator extends Thread {
 	private Floor[] floors;
 	private Door door;
 	static private Time time;
-	private int destFloor;
+	private int destinationFloor;
 
 	/**
 	 * Constructor
@@ -33,18 +33,23 @@ public class Elevator extends Thread {
 		this.time = time;
 		this.currentFloor = currentFloor;
 		this.door = new Door();
-		this.destFloor = currentFloor;
+		this.destinationFloor = currentFloor;
 
 	}
 
 	@Override
 	public synchronized void run() {
 		while (true) {
-			while (currentFloor == destFloor) {
+			while (currentFloor == destinationFloor) {
+				door.open();
 				try {
 					wait();
-				} catch (InterruptedException e) {}
+				} catch (InterruptedException e) {
+					door.open();
+				}
 			}
+
+			System.out.println("\nElevator: moving...");
 
 			try {
 				wait((long) (MOVE_ONE_FLOOR_TIME / time.getCompressionFactor()));
@@ -52,12 +57,12 @@ public class Elevator extends Thread {
 				e.printStackTrace();
 			}
 
-			if (currentFloor > destFloor) {
+			if (currentFloor > destinationFloor) {
 				currentFloor -= 1;
-				System.out.println("Moving down a floor, now at " + currentFloor);
+				System.out.println("\nElevator: Down 1 floor, now at " + currentFloor);
 			} else {
 				currentFloor += 1;
-				System.out.println("Moving up a floor, now at " + currentFloor);
+				System.out.println("\nElevator: Up 1 floor, now at " + currentFloor);
 			}
 
 			notifyAll();
@@ -81,7 +86,7 @@ public class Elevator extends Thread {
 	 * @param destFloor Destination Floor
 	 */
 	public synchronized void move(int destFloor) {
-		this.destFloor = destFloor;
+		this.destinationFloor = destFloor;
 		System.out.println("\nElevator: new destination floor " + destFloor);
 		notifyAll();
 	}
@@ -99,6 +104,6 @@ public class Elevator extends Thread {
 	}
 
 	public boolean isStopped() {
-		return door.isOpen;
+		return door.isOpen();
 	}
 }

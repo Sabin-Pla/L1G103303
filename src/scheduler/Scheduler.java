@@ -26,12 +26,16 @@ public class Scheduler implements Runnable {
 	private int nextDestination;
 	private int nextExpectedFloor;
 
+	private enum State {MONITORING_ELEVATOR, IDLING, HANDLING_EVENT};
+	private State state;
+
 	/**
 	 * Constructor
 	 */
 	public Scheduler(Time time) {
 		this.time = time;
 		timeQueue = new TimeQueue();
+		state = State.IDLING;
 	}
 
 	/**
@@ -50,41 +54,57 @@ public class Scheduler implements Runnable {
 	@Override
 	public synchronized void run() {
 		while (true) {
-			while (timeQueue.isEmpty()) {
+			while (state == State.IDLING) {
 				try {
 					wait();
 				} catch (InterruptedException e) {}
 			}
-			fulfillNextRequest();
-			try {
-				monitorElevator();
-			} catch (ElevatorException e) {
-				e.printStackTrace();
+
+			while (state == State.HANDLING_EVENT) {
+				fulfillNextRequest();
+			}
+
+			while (state == state.MONITORING_ELEVATOR) {
+				try {
+					monitorElevator();
+				} catch (ElevatorException e) {
+					e.printStackTrace();
+					state = State.IDLING;
+				}
 			}
 		}
 	}
 
 	private synchronized void monitorElevator() throws ElevatorException {
 		long timeoutTime = timeEvent.getEventTime() + MAXIMUM_ACCEPTABLE_WAIT_TIME;
+
 		while (!(time.now() > timeoutTime )) {
 			try {
 				wait();
-			} catch (InterruptedException elevatorMoved) {
-				int currentFloor = elevator.getCurrentFloor();
-				if (currentFloor == nextDestination) {
-					return;
-				}
-				if (currentFloor != nextExpectedFloor) {
-					throw new ElevatorException("Elevator not going in dispatched direction");
-				}
-				if (nextDestination > currentFloor) {
-					nextExpectedFloor++;
+			} catch (InterruptedException elevatorMoved) {}
+
+			int currentFloor = lastSensor;
+			System.out.println("\nScheduler: Monitoring... elevator at floor " + currentFloor);
+			if (currentFloor == nextDestination) {
+				System.out.println("\nScheduler: Destination floor reached");
+				if (timeQueue.isEmpty()) {
+					state = State.IDLING;
 				} else {
-					nextExpectedFloor--;
+					state = State.HANDLING_EVENT;
 				}
+				return;
+			} else if (currentFloor != nextExpectedFloor) {
+				//throw new ElevatorException("Elevator not going in dispatched direction : " +
+			//			currentFloor + " " + nextExpectedFloor);
+			}
+
+			if (nextDestination > currentFloor) {
+				nextExpectedFloor = currentFloor + 1;
+			} else {
+				nextExpectedFloor = currentFloor - 1;
 			}
 		}
-		throw new ElevatorException("Elevator took more than 3 minutes to fulfill request");
+		throw new ElevatorException("Elevator took too long to fulfill request");
 	}
 
 	/**
@@ -94,44 +114,39 @@ public class Scheduler implements Runnable {
 		//select and remove the request at the head of the time queue
 		timeEvent = (TimeEvent) timeQueue.poll();
 
-		System.out.println("\nScheduler:");
+		System.out.print("\nScheduler: ");
 
+		int currentFloor = elevator.getCurrentFloor();
 		//if the event is a requestElevatorEvent, move the elevator to the floor to pick up the passenger
 		if (timeEvent instanceof RequestElevatorEvent) {
 			System.out.println("Elevator should pick up passenger on floor " + ((RequestElevatorEvent) timeEvent).getFloor());
-
-			int currentFloor = elevator.getCurrentFloor();
-			int nextFloor = ((RequestElevatorEvent) timeEvent).getFloor();
-			if (nextFloor > currentFloor) {
-				nextExpectedFloor = currentFloor + 1;
-			} else {
-				nextExpectedFloor = currentFloor - 1;
-			}
-
-			elevator.move(nextFloor);
+			nextDestination = ((RequestElevatorEvent) timeEvent).getFloor();
 		}
 		//if the event is a CarButtonEvent, move the elevator to the floor to drop off the passenger
 		else if (timeEvent instanceof CarButtonEvent) {
 			System.out.println("Elevator should drop off passenger on floor " + ((CarButtonEvent) timeEvent).getDestinationFloor());
-
-			int currentFloor = elevator.getCurrentFloor();
-			int nextFloor = ((CarButtonEvent) timeEvent).getDestinationFloor();
-			if (nextFloor > currentFloor) {
-				nextExpectedFloor = currentFloor + 1;
-			} else {
-				nextExpectedFloor = currentFloor - 1;
-			}
-
-			elevator.move(nextFloor);
+			nextDestination = ((CarButtonEvent) timeEvent).getDestinationFloor();
 		}
+
+		if (nextDestination > currentFloor) {
+			nextExpectedFloor = currentFloor + 1;
+		} else {
+			nextExpectedFloor = currentFloor - 1;
+		}
+
+		System.out.println("next expected floor: " + nextExpectedFloor);
+
+		elevator.move(nextDestination);
+		state = State.MONITORING_ELEVATOR;
 	}
 
 	public synchronized void sensorActivated(int floorNumber) {
-		if (floorNumber != lastSensor) {
-			System.out.println("\nScheduler:  Elevator at floor " + floorNumber);
+		while (floorNumber != lastSensor) {
+			System.out.println("\nScheduler: Sensor at floor " + floorNumber + " activated");
+			System.out.println("Current state: " + state);
 			lastSensor = floorNumber;
-			notifyAll();
 		}
+		notifyAll();
 	}
 
 	/**
@@ -144,6 +159,9 @@ public class Scheduler implements Runnable {
 		if (!timeQueue.add(request)) {
 			throw new ElevatorException("Cannot schedule event in the past!");
 		}
-		notifyAll();
+		if (state != State.HANDLING_EVENT) {
+			state = State.HANDLING_EVENT;
+			notifyAll();
+		}
 	}
 }

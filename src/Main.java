@@ -33,8 +33,8 @@ public class Main {
         }
 
         Time time = new Time(
-                Time.SECOND_TO_MINUTE,
-                events.get(0).getEventTime() - (long) (1000 * Time.SECOND_TO_MINUTE));
+                Time.SECOND_TO_MINUTE / 2,
+                events.get(0).getEventTime() - (long) (50 * (Time.SECOND_TO_MINUTE / 2)));
 
         events.get(0).setTime(time);
 
@@ -60,8 +60,13 @@ public class Main {
                 }
             }
 
-            Lamp lamp = new Lamp(false);
-            if (i==0) lamp.turnOn();
+            Lamp lamp ;
+            if (i==0) {
+                lamp = new Lamp(true);
+            } else {
+                lamp = new Lamp(false);
+            }
+
             Floor floor = new Floor(i+1, floorEvents, lamp);
             Sensor sensor = new Sensor(elevator, floor);
             floors[i] = floor;

@@ -8,10 +8,16 @@ public class Lamp {
     }
 
     public void turnOn() {
-        on = true;
+        if (on == false) {
+            System.out.println("\nLamp: On");
+            on = true;
+        }
     }
 
     public void turnOff() {
-        on = false;
+        if (on == true){
+            System.out.println("\nLamp: Off");
+            on = false;
+        }
     }
 }

@@ -182,15 +182,15 @@ public class Floor extends Thread {
 	}
 
 	/**
-	 * Performs the actions needed once an elevator arrives.
+	 * Performs the actions needed once an elevator arrives at this floor
 	 *
-	 * Turn on floor lamp if elevator arrived at floor
+	 * Turn on floor lamp and allow passengers to board if the elevator is stopped
 	 *
 	 * If there are car button events, dispatch those to the elevator/scheduler.
 	 *
 	 */
 	public void elevatorArrival() {
-		if (elevator.getFloor() == floorNumber && elevator.isStopped()) {
+		if (elevator.isStopped()) {
 			lamp.turnOn();
 			if (!carButtonEvents.isEmpty()) {
 				CarButtonEvent event = (CarButtonEvent) carButtonEvents.nextEvent();
@@ -202,6 +202,8 @@ public class Floor extends Thread {
 						return;
 					}
  				}
+				System.out.println("\nFloor: Sending car button press event to elevator. To " +
+						event.getDestinationFloor());
 				elevator.sendEvent(event);
 			}
 		} else {

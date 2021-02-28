@@ -51,6 +51,7 @@ public class Sensor extends Thread {
                         e.printStackTrace();
                     }
                 }
+                elevator.notifyAll();
             }
         }
     }

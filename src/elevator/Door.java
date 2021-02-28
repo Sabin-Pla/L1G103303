@@ -1,7 +1,7 @@
 package elevator;
 
 public class Door {
-    boolean isOpen;
+    private boolean isOpen;
 
     public Door() {
         this.isOpen = false;
