@@ -5,9 +5,9 @@
 Simulation of a real time elevator system. 
 
 
-**##Breakdown of Responsibilty**
+# Breakdown of Responsibilty
  
- Common Package:
+## Common Package:
  
  CarButtonEvent - Harshil Verma
  
@@ -25,21 +25,21 @@ Simulation of a real time elevator system.
  
  TimeQueue - John Afolayan
  
- Elevator Package:
+## Elevator Package:
  
  Door - Aayush Mallya
  Elevator - Mmedara Josiah, Sabin Plaiasu
  Sensor - Aayush Mallya
  
- Floor Package:
+## Floor Package:
  ElevatorException - Mmedara Josiah
  Floor - Sabin Plaiasu
  Lamp - John Afolayan
  
- Scheduler Package:
+## Scheduler Package:
  Scheduler - Harshil Verma, Mmedara Josiah
  
- Test Package:
+## Test Package:
  
  CarButtonEventTest - Harshil Verma
  FloorTest - Sabin Plaiasu
@@ -49,7 +49,7 @@ Simulation of a real time elevator system.
  TimeEventTest - Aayush Mallya
  TimeQueueTest - John Afolayan, Mmedara Josiah
  
-**##Names of Files **
+# Names of Files
 
 ### Package Common
 
