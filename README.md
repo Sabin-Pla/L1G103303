@@ -10,12 +10,19 @@ Simulation of a real time elevator system.
  Common Package:
  
  CarButtonEvent - Harshil Verma
+ 
  InvalidDirectionException - Sabin Plaiasu
+ 
  Parser - John Afolayan
+ 
  RequestElevatorEvent - Aayush Mallya
+ 
  Time - Sabin Plaiasu
+ 
  TimeEvent - Harshil Verma
+ 
  TimeException - Sabin Plaiasu
+ 
  TimeQueue - John Afolayan
  
  Elevator Package:
