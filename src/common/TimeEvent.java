@@ -4,7 +4,7 @@ public class TimeEvent implements Comparable {
 
     protected static Time time;
     private long eventTime;
-    private static long PAST_EVENT_LENIENCY = 4000; // any events younger than this many MS are not in the past
+    private static long PAST_EVENT_LENIENCY = 10000; // any events younger than this many MS are not in the past
 
     /**
      * Creates an object for an event that happens at a certain time
@@ -53,6 +53,16 @@ public class TimeEvent implements Comparable {
      * @return true if the event occurrence time is more than PAST_EVENT_LENIENCY ms in the past
      */
     public boolean hasPassed() {
-        return eventTime + PAST_EVENT_LENIENCY < time.now();
+        return eventTime + PAST_EVENT_LENIENCY * time.getCompressionFactor() < time.now();
     }
+
+    /**
+     * Gets the time object used by all events
+     *
+     * @return the time object used by all events
+     */
+    public Time getTime() {
+        return this.time;
+    }
+
 }

@@ -29,9 +29,9 @@ public class Parser {
      * @param requestFile The file to read request from
      * @return An array queue of all the requests from the file
      */
-    public static ArrayList<TimeEvent> getRequestFromFile(File requestFile) {
+    public static ArrayList<RequestElevatorEvent> getRequestFromFile(File requestFile) {
    
-        ArrayList<TimeEvent> events = new ArrayList<>();
+        ArrayList<RequestElevatorEvent> events = new ArrayList<>();
         Scanner scanner;
 
         try {
@@ -68,13 +68,15 @@ public class Parser {
                     pressDate = calendar.getTime();
                 }
 
+                CarButtonEvent carButtonEvent = new CarButtonEvent(pressDate.toInstant().toEpochMilli(),
+                        destinationFloor);
+
             	RequestElevatorEvent requestElevatorEvent = new RequestElevatorEvent(
             	        sourceFloor,
-                        pressDate.toInstant().toEpochMilli(),
-                        goingUp);
+                        goingUp,
+                        carButtonEvent);
 
                 events.add(requestElevatorEvent);
-                events.add(new CarButtonEvent(requestElevatorEvent, destinationFloor));
             }
             scanner.close();
         } catch (FileNotFoundException | InvalidDirectionException e) {

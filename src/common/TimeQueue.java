@@ -12,6 +12,18 @@ public class TimeQueue extends PriorityBlockingQueue {
         }
     }
 
+    /**
+     * Calculates the amount of real-world time in MS that it will take for the next event to occur. This amount
+     * may be off by several milliseconds due to conversions.
+     *
+     * @return the amount of time before the next event according to events time object
+     */
+    public long waitTime() {
+        Time time = peekEvent().getTime();
+        long realEventTime = peekEvent().getEventTime(); // the 'real world' time the next event will occur
+        return (long) ((realEventTime - time.now()) / (time.getCompressionFactor()));
+    }
+
     @Override
     public boolean add(Object o) {
         try {
@@ -30,6 +42,10 @@ public class TimeQueue extends PriorityBlockingQueue {
         } catch (Exception ignored) {
             return false;
         }
+    }
+
+    public TimeEvent nextEvent() {
+        return (TimeEvent) this.poll();
     }
 
     public TimeEvent peekEvent() {

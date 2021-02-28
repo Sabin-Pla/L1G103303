@@ -1,31 +1,25 @@
 package common;
 
+import java.util.Date;
+
 public class CarButtonEvent extends TimeEvent {
 
-    private RequestElevatorEvent elevatorEvent;
+    private long eventTime;
     private int destinationFloor;
 
     /**
      * Creates a CarButtonEvent containing the destination floor of whoever would have requested the elevator
      * in elevatorEvent
      *
-     * @param elevatorEvent the event sent when the passenger pressed the floor button
+     * @param eventTime the time the floor event was sent
      * @param destinationFloor the floor at which the passenger wants to leave
      * @throws InvalidDirectionException if the elevator is requested up to go to a higher floor, or down to a
      * lower floor
      */
-    public CarButtonEvent(RequestElevatorEvent elevatorEvent, int destinationFloor) throws InvalidDirectionException {
-        super(elevatorEvent.getEventTime());
+    public CarButtonEvent(long eventTime, int destinationFloor) throws InvalidDirectionException {
+        super(eventTime);
 
-        if (elevatorEvent.isGoingUp() && destinationFloor < elevatorEvent.getFloor()) {
-            throw new InvalidDirectionException("Going down to a higher floor");
-        } else if (!elevatorEvent.isGoingUp() && destinationFloor > elevatorEvent.getFloor())  {
-            throw new InvalidDirectionException("Going up to a lower floor");
-        } else if (destinationFloor == elevatorEvent.getFloor()) {
-            throw new InvalidDirectionException("Source and destination floor cannot be equal");
-        }
-
-        this.elevatorEvent = elevatorEvent;
+        this.eventTime = eventTime;
         this.destinationFloor = destinationFloor;
     }
 
@@ -39,11 +33,11 @@ public class CarButtonEvent extends TimeEvent {
     }
 
     /**
-     * gets the elevator-request event
+     * Converts object to human readable string
      *
-     * @return the event sent when the passenger pressed the floor button
+     * @return object in form of human readable string
      */
-    public RequestElevatorEvent getElevatorEvent() {
-        return elevatorEvent;
+    public String toString() {
+        return new Date(this.getEventTime()) + " boarding. going to floor " + this.getDestinationFloor();
     }
 }

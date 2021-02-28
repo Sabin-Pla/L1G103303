@@ -7,7 +7,6 @@ import org.junit.Test;
 import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Date;
 
 public class IntegratedEventTest {
 
@@ -18,9 +17,9 @@ public class IntegratedEventTest {
         URL resource = getClass().getResource("integratedTestEvents.txt");
         File f =  new File(resource.getFile());
         assert (f != null);
-        ArrayList<TimeEvent> events = Parser.getRequestFromFile(f);
+        ArrayList<RequestElevatorEvent> events = Parser.getRequestFromFile(f);
 
-        assert (events.size() == NUM_EVENTS * 2);
+        assert (events.size() == NUM_EVENTS);
 
         long simulationStart = events.get(0).getEventTime();
         /*
@@ -33,12 +32,9 @@ public class IntegratedEventTest {
         TimeQueue queueElevator = new TimeQueue();
         TimeQueue queueFloor = new TimeQueue();
 
-        for (TimeEvent event : events) {
-            if (event instanceof CarButtonEvent) {
-                assert queueElevator.add(event);
-            } else if (event instanceof RequestElevatorEvent) {
-                assert queueFloor.add(event);
-            }
+        for (RequestElevatorEvent requestElevatorEvent : events) {
+            assert queueElevator.add(requestElevatorEvent);
+            assert queueFloor.add(requestElevatorEvent.getCarButtonEvent());
         }
 
         TestRunner elevatorRunner = new TestRunner(queueElevator);
@@ -46,86 +42,71 @@ public class IntegratedEventTest {
         Thread elevatorThread = new Thread(elevatorRunner);
         Thread floorThread = new Thread(floorRunner);
 
+        time.restart();
+        elevatorThread.start();
+        floorThread.start();
+
         assert (elevatorRunner.getEventsSent() == 0);
         assert (floorRunner.getEventsSent() == 0);
 
-        elevatorThread.start();
-        //floorThread.start();
-
-        time.restart();
-
-        assert (!queueElevator.peekEvent().hasPassed());
-        assert (!events.get(0).hasPassed());
-        //assert (elevatorRunner.getEventsSent() == 0);
         Thread.sleep(500);
 
-        assert (elevatorRunner.peek().hasPassed());
-        queueElevator.poll();
-        assert (!elevatorRunner.peek().hasPassed());
-        assert (events.get(0).hasPassed());
-        assert (!events.get(2).hasPassed());
-        //assert (elevatorRunner.getEventsSent() == 1);
-        Thread.sleep(1000);
+        for (int i=1; i<5; i++) {
+            assert (elevatorRunner.getEventsSent() == i);
+            assert (floorRunner.getEventsSent() == i);
+            assert (elevatorRunner.getWaitTimeRecalculations() < 3 * i);
+            assert (floorRunner.getWaitTimeRecalculations() < 3 * i);
+            Thread.sleep(1000);
+        }
 
-        assert (elevatorRunner.peek().hasPassed());
-        queueElevator.poll();
-        assert (!elevatorRunner.peek().hasPassed());
-        assert (events.get(2).hasPassed());
-        assert (!events.get(4).hasPassed());
-        //assert (elevatorRunner.getEventsSent() == 2);
-        Thread.sleep(1000);
-
-        assert (elevatorRunner.peek().hasPassed());
-        queueElevator.poll();
-        assert (!elevatorRunner.peek().hasPassed());
-        assert (events.get(4).hasPassed());
-        assert (!events.get(6).hasPassed());
-        //assert (elevatorRunner.getEventsSent() == 3);
-        Thread.sleep(1000);
-
-        assert (events.get(6).hasPassed());
-        //assert (elevatorRunner.getEventsSent() == 4);
-
-        //assert (elevatorRunner.done());
-        //assert (floorRunner.done());
+        floorThread.join();
+        elevatorThread.join();
     }
 }
 
 class TestRunner implements Runnable {
 
     private TimeQueue queue;
+    private final long MINIMUM_WAIT_TIME = 50;
     private int eventsSent;
+    private int waitTimeRecalculations;
 
     public TestRunner(TimeQueue queue) {
         this.queue = queue;
         eventsSent = 0;
+        waitTimeRecalculations = 0;
     }
 
-    public TimeEvent peek() {
-        return (TimeEvent) queue.peek();
+    public int getWaitTimeRecalculations() {
+        return  waitTimeRecalculations;
     }
 
     public int getEventsSent() {
         return eventsSent;
     }
 
-    public boolean done() {
-        return queue.isEmpty();
-    }
-
     @Override
-    public synchronized void run() {
-        while (!queue.isEmpty()) {
-            while (!queue.peekEvent().hasPassed()) {
-                try {
-                    wait();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+    public void run() {
+        synchronized (queue) {
+            long startTime = System.currentTimeMillis();
+            while (!queue.isEmpty()) {
+                while (!queue.peekEvent().hasPassed()) {
+                    try {
+                        long waitTime = queue.waitTime();
+                        if (waitTime >= MINIMUM_WAIT_TIME) {
+                            queue.wait(waitTime);
+                        } else {
+                            queue.wait(MINIMUM_WAIT_TIME);
+                        }
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 }
+                eventsSent++;
+                queue.poll();
             }
-            eventsSent++;
-            queue.poll();
         }
     }
+
 }
 

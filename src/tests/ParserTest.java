@@ -20,17 +20,12 @@ public class ParserTest {
         File f =  new File(resource.getFile());
         assert (f != null);
 
-        ArrayList<TimeEvent> events = Parser.getRequestFromFile(f);
+        ArrayList<RequestElevatorEvent> events = Parser.getRequestFromFile(f);
         assert (events != null);
-        assert (events.size() == NUM_lINES * 2);
+        assert (events.size() == NUM_lINES);
 
         for (int i=1; i < NUM_lINES; i++) {
             TimeEvent event = events.get(i);
-            if (i % 2 == 1) {
-                assert (event instanceof  CarButtonEvent);
-            } else {
-                assert (event instanceof RequestElevatorEvent);
-            }
             assert (event.compareTo(events.get(i - 1)) >= 0 );
         }
     }
