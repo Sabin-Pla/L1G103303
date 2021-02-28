@@ -33,13 +33,14 @@ public class Sensor extends Thread {
                     try {
                         elevator.wait();
                     } catch (InterruptedException elevatorArrived) {
-                        System.out.println("Sensor interrupted " + floor.getFloorNumber());
                     }
                 }
 
                 synchronized (floor.getEventQueue()) {
                     floor.getEventQueue().notify();
                 }
+
+                System.out.println("Sensor interrupted " + floor.getFloorNumber());
 
                 scheduler.sensorActivated(floorNumber); // for arrival
                 elevator.notifyAll();
@@ -51,7 +52,6 @@ public class Sensor extends Thread {
                         e.printStackTrace();
                     }
                 }
-                elevator.notifyAll();
             }
         }
     }

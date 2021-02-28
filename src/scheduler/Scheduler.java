@@ -26,6 +26,10 @@ public class Scheduler implements Runnable {
 	private int nextDestination;
 	private int nextExpectedFloor;
 
+	public int getLastSensor() {
+		return lastSensor;
+	}
+
 	private enum State {MONITORING_ELEVATOR, IDLING, HANDLING_EVENT};
 	private State state;
 
@@ -94,8 +98,8 @@ public class Scheduler implements Runnable {
 				}
 				return;
 			} else if (currentFloor != nextExpectedFloor) {
-				//throw new ElevatorException("Elevator not going in dispatched direction : " +
-			//			currentFloor + " " + nextExpectedFloor);
+				throw new ElevatorException("Elevator not going in dispatched direction : " +
+						currentFloor + " " + nextExpectedFloor);
 			}
 
 			if (nextDestination > currentFloor) {

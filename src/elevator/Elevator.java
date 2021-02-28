@@ -49,10 +49,17 @@ public class Elevator extends Thread {
 				}
 			}
 
+			while (scheduler.getLastSensor() != currentFloor) {
+				try {
+					wait();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
 			System.out.println("\nElevator: moving...");
 
 			try {
-				wait((long) (MOVE_ONE_FLOOR_TIME / time.getCompressionFactor()));
+				sleep((long) (MOVE_ONE_FLOOR_TIME / time.getCompressionFactor()));
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
