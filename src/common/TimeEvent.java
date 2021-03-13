@@ -1,6 +1,6 @@
 package common;
 
-public class TimeEvent implements Comparable {
+public class TimeEvent implements Comparable, java.io.Serializable {
 
     protected static Time time;
     private long eventTime;
@@ -53,7 +53,7 @@ public class TimeEvent implements Comparable {
      * @return true if the event occurrence time is more than PAST_EVENT_LENIENCY ms in the past
      */
     public boolean hasPassed() {
-        return eventTime + PAST_EVENT_LENIENCY * time.getCompressionFactor() < time.now();
+        return time.now() > eventTime + (long) (PAST_EVENT_LENIENCY * time.getCompressionFactor());
     }
 
     /**

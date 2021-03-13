@@ -3,8 +3,17 @@ package elevator;
 import common.CarButtonEvent;
 import floor.ElevatorException;
 import floor.Floor;
+import remote_procedure_events.CarButtonPressEvent;
 import scheduler.Scheduler;
 import common.Time;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
 
 
 /**
@@ -20,33 +29,35 @@ public class Elevator extends Thread {
 
 	private Scheduler scheduler;
 	private int currentFloor;
-	private Floor[] floors;
-	private Door door;
 	static private Time time;
 	private int destinationFloor;
+	private DatagramSocket sendSocket;
+	private boolean doorsClosed;
+	private int elevatorNumber;
 
 	/**
 	 * Constructor
 	 */
-	public Elevator(Scheduler scheduler, int currentFloor, Time time) {
-		this.scheduler = scheduler;
-		this.time = time;
+	public Elevator(int elevatorNumber, int currentFloor, Time time) throws SocketException {
+		this.elevatorNumber = elevatorNumber;
 		this.currentFloor = currentFloor;
-		this.door = new Door();
 		this.destinationFloor = currentFloor;
+		this.time = time;
 
+		this.doorsClosed = true;
+		this.sendSocket = new DatagramSocket();
 	}
 
 	@Override
-	public synchronized void run() {
+	public void run() {
 		while (true) {
 			while (currentFloor == destinationFloor) {
-				door.open();
+				doorsClosed = false;
 				try {
 					notifyAll(); // let sensors know elevator has stopped
 					wait();
 				} catch (InterruptedException e) {
-					door.open();
+					doorsClosed = true;
 				}
 			}
 
@@ -73,12 +84,8 @@ public class Elevator extends Thread {
 				System.out.println("\nElevator: Up 1 floor, now at " + currentFloor);
 			}
 
-			notifyAll();
+			reportArrival();
 		}
-	}
-
-	public void setFloors(Floor[] floors) {
-		this.floors = floors;
 	}
 
 	/**
@@ -93,7 +100,7 @@ public class Elevator extends Thread {
 	 * This method represents the floor which elevator is moving to.
 	 * @param destFloor Destination Floor
 	 */
-	public synchronized void move(int destFloor) {
+	public void move(int destFloor) {
 		this.destinationFloor = destFloor;
 		System.out.println("\nElevator: new destination floor " + destFloor);
 		notifyAll();
@@ -103,15 +110,27 @@ public class Elevator extends Thread {
 		return currentFloor;
 	}
 
-	public void sendEvent(CarButtonEvent event) {
+	public void sendCarButtonPress(CarButtonEvent event) {
 		try {
-			scheduler.setRequest(event);
-		} catch (InterruptedException | ElevatorException e) {
+			ByteArrayOutputStream dataStream = new ByteArrayOutputStream();
+			ObjectOutputStream out = new ObjectOutputStream(dataStream);
+			out.writeObject(event);
+			out.close();
+
+			byte[] data = dataStream.toByteArray();
+			DatagramPacket  sendPacket = new DatagramPacket(data,
+					data.length, InetAddress.getLocalHost(), CarButtonPressEvent.SCHEDULER_LISTEN_PORT);
+			sendSocket.send(sendPacket);
+		} catch (InterruptedException | ElevatorException | IOException e) {
 			e.printStackTrace();
 		}
 	}
 
-	public boolean isStopped() {
-		return door.isOpen();
+	public void reportArrival() {
+		// reports arrival to Floor and Scheduler
+	}
+
+	public boolean doorsClosed() {
+		return doorsClosed;
 	}
 }
