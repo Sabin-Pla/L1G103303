@@ -3,7 +3,6 @@ package floor;
 import common.*;
 import elevator.Elevator;
 
-import elevator.Sensor;
 import remote_procedure_events.CarButtonPressEvent;
 import remote_procedure_events.ElevatorFloorArrival;
 import remote_procedure_events.FloorButtonPressEvent;

@@ -3,23 +3,16 @@ package elevator;
 import common.CarButtonEvent;
 import floor.ElevatorException;
 import floor.Floor;
-import remote_procedure_events.CarButtonPressEvent;
 import scheduler.Scheduler;
 import common.Time;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
 
 
 /**
  * This class models the elevator
  *
- * @author Mmedara Josiah, Sabin Plaiasu
+ * @author Mmedara Josiah, Sabin Plaiasu, John Afolayan
  * @version Iteration 2
  *
  */
@@ -29,35 +22,36 @@ public class Elevator extends Thread {
 
 	private Scheduler scheduler;
 	private int currentFloor;
+	private Floor[] floors;
+	private Door door;
 	static private Time time;
 	private int destinationFloor;
-	private DatagramSocket sendSocket;
-	private boolean doorsClosed;
-	private int elevatorNumber;
+	private boolean isOpen;
 
 	/**
 	 * Constructor
 	 */
-	public Elevator(int elevatorNumber, int currentFloor, Time time) throws SocketException {
-		this.elevatorNumber = elevatorNumber;
-		this.currentFloor = currentFloor;
-		this.destinationFloor = currentFloor;
+	public Elevator(Scheduler scheduler, int currentFloor, Time time) {
+		this.scheduler = scheduler;
 		this.time = time;
+		this.currentFloor = currentFloor;
+		this.door = new Door();
+		this.destinationFloor = currentFloor;
+		this.isOpen = false;
 
-		this.doorsClosed = true;
-		this.sendSocket = new DatagramSocket();
 	}
 
 	@Override
-	public void run() {
+	public synchronized void run() {
 		while (true) {
 			while (currentFloor == destinationFloor) {
-				doorsClosed = false;
+				door.open();
 				try {
+					DatagramSocket elevatorServer = new DatagramSocket();
 					notifyAll(); // let sensors know elevator has stopped
 					wait();
 				} catch (InterruptedException e) {
-					doorsClosed = true;
+					door.open();
 				}
 			}
 
@@ -84,8 +78,12 @@ public class Elevator extends Thread {
 				System.out.println("\nElevator: Up 1 floor, now at " + currentFloor);
 			}
 
-			reportArrival();
+			notifyAll();
 		}
+	}
+
+	public void setFloors(Floor[] floors) {
+		this.floors = floors;
 	}
 
 	/**
@@ -100,7 +98,7 @@ public class Elevator extends Thread {
 	 * This method represents the floor which elevator is moving to.
 	 * @param destFloor Destination Floor
 	 */
-	public void move(int destFloor) {
+	public synchronized void move(int destFloor) {
 		this.destinationFloor = destFloor;
 		System.out.println("\nElevator: new destination floor " + destFloor);
 		notifyAll();
@@ -110,27 +108,25 @@ public class Elevator extends Thread {
 		return currentFloor;
 	}
 
-	public void sendCarButtonPress(CarButtonEvent event) {
+	public void sendEvent(CarButtonEvent event) {
 		try {
-			ByteArrayOutputStream dataStream = new ByteArrayOutputStream();
-			ObjectOutputStream out = new ObjectOutputStream(dataStream);
-			out.writeObject(event);
-			out.close();
-
-			byte[] data = dataStream.toByteArray();
-			DatagramPacket  sendPacket = new DatagramPacket(data,
-					data.length, InetAddress.getLocalHost(), CarButtonPressEvent.SCHEDULER_LISTEN_PORT);
-			sendSocket.send(sendPacket);
-		} catch (InterruptedException | ElevatorException | IOException e) {
+			scheduler.setRequest(event);
+		} catch (InterruptedException | ElevatorException e) {
 			e.printStackTrace();
 		}
 	}
 
-	public void reportArrival() {
-		// reports arrival to Floor and Scheduler
+	public boolean isStopped() {
+		return door.isOpen();
 	}
 
-	public boolean doorsClosed() {
-		return doorsClosed;
+	public void open() {
+		this.isOpen = true;
+	}
+	public void close() {
+		this.isOpen = false;
+	}
+	public boolean isOpen() {
+		return this.isOpen;
 	}
 }
