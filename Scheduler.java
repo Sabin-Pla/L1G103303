@@ -214,7 +214,7 @@ public class Scheduler implements Runnable {
     }
 
     /**
-     * Sends a request for status to the ElevatorSubsystem.
+     * Asks the elevator for its status and receives the reply from the elevator
      * 
      * @return A DatagramPacket containing the information for all Elevators.
      */
