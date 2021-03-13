@@ -100,7 +100,7 @@ public class Scheduler implements Runnable {
 				}
 				return;
 			} else if (currentFloor != nextExpectedFloor && lastFloor != currentFloor) {
-				throw new ElevatorException("Elevator not going in dispatched direction : " +
+				throw 	new ElevatorException("Elevator not going in dispatched direction : " +
 						currentFloor + " " + nextExpectedFloor);
 			}
 
@@ -109,7 +109,7 @@ public class Scheduler implements Runnable {
 			} else {
 				nextExpectedFloor = currentFloor - 1;
 			}
-
+			
 			lastFloor = currentFloor;
 		}
 		throw new ElevatorException("Elevator took too long to fulfill request");
