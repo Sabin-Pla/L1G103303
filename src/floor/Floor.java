@@ -30,8 +30,8 @@ public class Floor extends Thread {
 	// the minimum amount of time between which a floor thread should check to see if it should send events
 	private final long MINIMUM_WAIT_TIME = 5;
 	private final long MAXIMUM_WAIT_TIME = 120000; // max amount of time (ms) a thread should wait for an elevator
-	private static final int NUM_FLOORS = 10;
-	private static final String REQUEST_FILE = "src/requestsFile.txt";
+	public static final int NUM_FLOORS = 10;
+	public static final String REQUEST_FILE = "src/requestsFile.txt";
 	
 	private int floorNumber;
 	private TimeQueue eventQueue;
