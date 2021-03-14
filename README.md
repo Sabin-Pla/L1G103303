@@ -1,9 +1,9 @@
-# Project Iteration 2 : SYSC3303 L1, GROUP 10
+# Project Iteration 3 : SYSC3303 L1, GROUP 10
 
 Simulation of a real time elevator system. 
 
 
-# Breakdown of Responsibilty
+# Breakdown of Responsibilty 
  
 ### Common Package:
  
@@ -59,6 +59,32 @@ Simulation of a real time elevator system.
  
  TimeQueueTest - John Afolayan, Mmedara Josiah
  
+ # Breakdown of Responsibilty Iteration 3
+ 
+ ### Common Package:
+ 
+ TimeEvent - Sabin Plaiasu
+ 
+ ### Elevator Package:
+ 
+ Elevator - John Afolayan, Mmedara Josiah
+ 
+ ### Floor Package:
+ 
+ Floor - Sabin Plaiasu, Aayush Mallya
+ 
+ ### remote_procedure_events Package:
+ 
+ CarButtonPressEvent - Harshil Verma
+ 
+ ElevatorFloorArrival - John Afolayan
+ 
+ FloorButtonPressEvent - Aayush Mallya
+ 
+ ### Scheduler Package:
+ 
+ Scheduler - Mmedara Josiah, Harshil Verma
+ 
 # Names of Files
 
 ### Package Common
@@ -91,6 +117,17 @@ This class contains the various states for the door
 This class models the elevator
 #### Sensor
 This class models the sensor used to track the elevator
+
+### Package remote_procedure_events 
+This package contains the events that transpire when the car button is pressed, when a floor button is spressed, and when the elevator arrives at a floor.
+
+Classes:
+#### CarButtonPressEvent
+This class handles the evnts when a car button is pressed.
+#### ElevatorFloorArrival
+This class handles the time event and floor/elevator information when an elevator arrives at a floor.
+#### FloorButtonPressEvent
+This class handles the port listener and the events triggered when a floor button is pressed.
 
 
 ### Package Scheduler
