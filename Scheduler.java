@@ -1,6 +1,8 @@
 package scheduler;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -22,8 +24,6 @@ import floor.ElevatorException;
  */
 public class Scheduler implements Runnable {
 	// maximum amount of time (ms) an elevator should take to fulfill any request
-	private final long MAXIMUM_ACCEPTABLE_WAIT_TIME = 60 * 5 * 1000;
-
 	private TimeQueue timeQueue;
 	private TimeEvent timeEvent;
 	private Elevator elevator;
@@ -39,13 +39,13 @@ public class Scheduler implements Runnable {
 		return lastSensor;
 	}
 
-	private enum State {MONITORING_ELEVATOR, IDLING, HANDLING_EVENT};
+	private enum State {IDLING, HANDLING_EVENT};
 	private State state;
 	
-    private static final int FLOOR_SEND_PORT = 23;
-    private static final int ELEVATOR_RECEIVE_PORT = 60;
-    private static final int ELEVATOR_SEND_PORT = 61;
-    private static final int ELEVATOR_REPLY_PORT = 62;
+    private static final int FLOOR_SEND_PORT = 23 * 1024;
+    private static final int ELEVATOR_RECEIVE_PORT = 63 * 1024;
+    private static final int ELEVATOR_SEND_PORT = 64 * 1024;
+    private static final int ELEVATOR_REPLY_PORT = 65 * 1024;
     private static final int DATA_SIZE = 26;
     
     private DatagramPacket sendPacket, receiveFloorPacket, receiveElevatorPacket, receiveElevatorInfo;
@@ -214,7 +214,7 @@ public class Scheduler implements Runnable {
     }
 
     /**
-     * Asks the elevator for its status and receives the reply from the elevator
+     * Sends a request for status to the ElevatorSubsystem.
      * 
      * @return A DatagramPacket containing the information for all Elevators.
      */
@@ -275,7 +275,6 @@ public class Scheduler implements Runnable {
                 numIdle++;
         }
 
-
         if (numIdle == numElevators) {
             int i = 0;
             for (String s : elevatorStatuses) {
@@ -283,7 +282,6 @@ public class Scheduler implements Runnable {
                     String[] temp = s.split("\\|");
                     elevatorScores.add(i, Math.abs(startFloor - Integer.parseInt(temp[1])));
                     i++;
-
                 }   
             }
             int min = elevatorScores.indexOf(Collections.min(elevatorScores));
@@ -345,7 +343,18 @@ public class Scheduler implements Runnable {
 	 * @throws InterruptedException
 	 */
 	public synchronized void setRequest(DatagramPacket request) throws InterruptedException, ElevatorException {
-		if (!timeQueue.add(request)) {
+    	ByteArrayInputStream bainStream = new ByteArrayInputStream(request.getData());
+    	TimeEvent event = null;
+    	try {
+    		ObjectInputStream oinStream = new ObjectInputStream(bainStream);
+    		event = (TimeEvent) oinStream.readObject();
+    	}
+    	catch (IOException e) {
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		}
+		if (!timeQueue.add(event)) {
 			throw new ElevatorException("Cannot schedule event in the past!");
 		}
 		if (state != State.HANDLING_EVENT) {
@@ -354,8 +363,6 @@ public class Scheduler implements Runnable {
 		}
 	}
 	
-	
-	//	MAIN IS NOT COMPLETE.   //
 	/**
      * Entry point for the application.
      *
