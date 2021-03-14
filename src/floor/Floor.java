@@ -1,11 +1,9 @@
 package floor;
 
 import common.*;
-import elevator.Elevator;
 
-import elevator.Sensor;
 import remote_procedure_events.CarButtonPressEvent;
-import remote_procedure_events.ElevatorFloorArrival;
+import remote_procedure_events.ElevatorFloorArrivalEvent;
 import remote_procedure_events.FloorButtonPressEvent;
 
 import java.io.*;
@@ -31,7 +29,8 @@ public class Floor extends Thread {
 	// the minimum amount of time between which a floor thread should check to see if it should send events
 	private final long MINIMUM_WAIT_TIME = 5;
 	private final long MAXIMUM_WAIT_TIME = 120000; // max amount of time (ms) a thread should wait for an elevator
-	private static final int NUM_FLOORS = 10;
+	public static final int NUM_FLOORS = 10;
+	public static final int NUM_ELEVATORS = 2;
 	private static final String REQUEST_FILE = "src/requestsFile.txt";
 	
 	private int floorNumber;
@@ -40,6 +39,7 @@ public class Floor extends Thread {
 	private boolean floorLamps[];
 	private DatagramSocket sendSocket;
 	private DatagramSocket receiveSocket;
+	private int elevatorFloors[];
 
 	/**
 	 * Constructor initializes all variables
@@ -50,7 +50,11 @@ public class Floor extends Thread {
 		this.floorLamps = new boolean[2];
 		this.carButtonEvents = new TimeQueue();
 		this.sendSocket = new DatagramSocket();
-		this.receiveSocket = new DatagramSocket(ElevatorFloorArrival.FLOOR_LISTEN_PORT);
+		this.receiveSocket = new DatagramSocket(ElevatorFloorArrivalEvent.FLOOR_LISTEN_PORT);
+		this.elevatorFloors = new int[NUM_ELEVATORS];
+		for (int i=0; i < NUM_ELEVATORS; i++) {
+			elevatorFloors[i] = 1;  // assume all elevators are at floor 1 to start
+		}
 		setName("Floor " + floorNumber);
 
 	}
@@ -111,11 +115,11 @@ public class Floor extends Thread {
 		}
 
 		ByteArrayInputStream bainStream = new ByteArrayInputStream(receivePacket.getData());
-		ElevatorFloorArrival arrivalEvent = null;
+		ElevatorFloorArrivalEvent arrivalEvent = null;
 
 		try {
 			ObjectInputStream oinStream = new ObjectInputStream(bainStream);
-			arrivalEvent = (ElevatorFloorArrival) oinStream.readObject();
+			arrivalEvent = (ElevatorFloorArrivalEvent) oinStream.readObject();
 		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (ClassNotFoundException e) {
@@ -123,12 +127,7 @@ public class Floor extends Thread {
 		}
 
 		try {
-			if (arrivalEvent.getArrivalFloor() == floorNumber) {
-					elevatorMoved(arrivalEvent.getElevatorNumber(), true);
-
-			} else {
-				elevatorMoved(arrivalEvent.getElevatorNumber(), false);
-			}
+			elevatorMoved(arrivalEvent.getElevatorNumber(), arrivalEvent.getArrivalFloor());
 		} catch (ElevatorException e) {
 			e.printStackTrace();
 		}
@@ -142,22 +141,24 @@ public class Floor extends Thread {
 	 * If there are car button events, dispatch those to the elevator/scheduler.
 	 *
 	 */
-	public void elevatorMoved(int elevatorNumber, boolean arrived) throws ElevatorException {
-		if (arrived) {
-			floorLamps[elevatorNumber] = true;
-			System.out.println("\n Floor: Lamp on");
-			if (!carButtonEvents.isEmpty()) {
-				CarButtonEvent event = (CarButtonEvent) carButtonEvents.nextEvent();
-				if (event.getEventTime() - event.getTime().now() > MAXIMUM_WAIT_TIME) {
-					throw new ElevatorException("Passenger waited more than " + MAXIMUM_WAIT_TIME + " ms");
- 				}
-				System.out.println("\nFloor: Sending car button press event to elevator. To " +
-						event.getDestinationFloor());
-				sendEvent(event);
-			}
-		} else {
+	public void elevatorMoved(int elevatorNumber, int floor) throws ElevatorException {
+		if (floor == floorNumber) {
+				floorLamps[elevatorNumber] = true;
+				System.out.println("Floor " + floorNumber + " turning Lamp on");
+				if (!carButtonEvents.isEmpty()) {
+					CarButtonEvent event = (CarButtonEvent) carButtonEvents.nextEvent();
+					if (event.getEventTime() - event.getTime().now() > MAXIMUM_WAIT_TIME) {
+						throw new ElevatorException("Passenger waited more than " + MAXIMUM_WAIT_TIME + " ms");
+					}
+					System.out.println("\nFloor: Sending car button press event to elevator. To " +
+							event.getDestinationFloor());
+					sendEvent(event);
+				}
+		} else if (floorLamps[elevatorNumber]){
+			System.out.println("Floor " + floorNumber + "turning lamp off");
 			floorLamps[elevatorNumber] = false;
 		}
+		elevatorFloors[elevatorNumber] = floor;
 	}
 
 
@@ -165,23 +166,32 @@ public class Floor extends Thread {
 		try {
 			ByteArrayOutputStream dataStream = new ByteArrayOutputStream();
 			ObjectOutputStream out = new ObjectOutputStream(dataStream);
-			out.writeObject(event);
-			out.close();
-
-			byte[] data = dataStream.toByteArray();
 
 			if (event instanceof CarButtonEvent) {
+				int elevatorNumber = ((CarButtonEvent) event).getElevatorNumber();
+				CarButtonPressEvent cbpe = new CarButtonPressEvent(event.getEventTime(),
+						elevatorFloors[elevatorNumber],
+						elevatorNumber,
+						((CarButtonEvent) event).getDestinationFloor());
+
+				out.writeObject(cbpe);
+				byte[] data = dataStream.toByteArray();
 				DatagramPacket sendPacket = new DatagramPacket(data,
 						data.length, InetAddress.getLocalHost(), CarButtonPressEvent.SCHEDULER_LISTEN_PORT);
 				sendSocket.send(sendPacket);
 			} else if (event instanceof FloorButtonPressEvent) {
+				out.writeObject(event);
+				byte[] data = dataStream.toByteArray();
 				DatagramPacket sendPacket = new DatagramPacket(data,
 						data.length, InetAddress.getLocalHost(), FloorButtonPressEvent.SCHEDULER_LISTEN_PORT);
 				sendSocket.send(sendPacket);
 			}
+
+			out.close();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+
 	}
 	
 	public static void main(String[] args) throws SocketException {

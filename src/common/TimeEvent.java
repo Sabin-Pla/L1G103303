@@ -64,5 +64,4 @@ public class TimeEvent implements Comparable, java.io.Serializable {
     public Time getTime() {
         return this.time;
     }
-
 }
