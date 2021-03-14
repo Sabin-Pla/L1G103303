@@ -5,7 +5,6 @@ import java.util.Date;
 public class CarButtonEvent extends TimeEvent {
 
     private long eventTime;
-    private int elevatorNumber;
     private int destinationFloor;
 
     /**
@@ -17,10 +16,9 @@ public class CarButtonEvent extends TimeEvent {
      * @throws InvalidDirectionException if the elevator is requested up to go to a higher floor, or down to a
      * lower floor
      */
-    public CarButtonEvent(long eventTime, int destinationFloor, int elevatorNumber) throws InvalidDirectionException {
+    public CarButtonEvent(long eventTime, int destinationFloor) throws InvalidDirectionException {
         super(eventTime);
 
-        this.elevatorNumber = elevatorNumber;
         this.eventTime = eventTime;
         this.destinationFloor = destinationFloor;
     }
@@ -33,9 +31,6 @@ public class CarButtonEvent extends TimeEvent {
     public int getDestinationFloor() {
         return destinationFloor;
     }
-
-
-    public int getElevatorNumber() { return  elevatorNumber; }
 
     /**
      * Converts object to human readable string

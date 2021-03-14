@@ -1,8 +1,6 @@
 package scheduler;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
+import java.io.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -10,14 +8,13 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Stack;
 
-import common.TimeEvent;
-import common.TimeException;
-import common.TimeQueue;
+import common.*;
 
 import floor.ElevatorException;
 import floor.Floor;
 import remote_procedure_events.CarButtonPressEvent;
-import remote_procedure_events.ElevatorFloorArrivalEvent;
+import remote_procedure_events.FloorArrivalEvent;
+import remote_procedure_events.ElevatorMotorEvent;
 import remote_procedure_events.FloorButtonPressEvent;
 
 /**
@@ -35,11 +32,13 @@ public class Scheduler implements Runnable {
 
 	private Stack<Integer> intersectingFloors[];
 	private Stack<Integer> stopStack[];
+	private Time time;
 
 	private static final int DATA_SIZE = 256;
 
 	private DatagramPacket sendPacket, receiveElevatorInfo;
 	private DatagramSocket floorSocketReceiver, carButtonSocket, elevatorResponseSocket, sendSocket;
+
 
 	/**
 	 * Constructor
@@ -56,12 +55,16 @@ public class Scheduler implements Runnable {
 		try {
 			floorSocketReceiver = new DatagramSocket(FloorButtonPressEvent.SCHEDULER_LISTEN_PORT);
 			carButtonSocket = new DatagramSocket(CarButtonPressEvent.SCHEDULER_LISTEN_PORT);
-			elevatorResponseSocket = new DatagramSocket(ElevatorFloorArrivalEvent.SCHEDULER_LISTEN_PORT);
+			elevatorResponseSocket = new DatagramSocket(FloorArrivalEvent.SCHEDULER_LISTEN_PORT);
 			sendSocket = new DatagramSocket();
 		} catch(SocketException e) {
 			System.out.println("Error: SchedulerSubSystem cannot be initialized.");
 			System.exit(1);
 		}
+	}
+
+	private void setTime(Time time) {
+		this.time = time;
 	}
 
 	/**
@@ -87,10 +90,15 @@ public class Scheduler implements Runnable {
 	 * to decide which Elevator should receive the packet.
 	 *
 	 */
-	private void sendPacketToElevator(DatagramPacket packet) {
-		System.out.println("-> Sending elevator number");
-		printPacketInfo(packet);
+	private void sendPacketToElevator(ElevatorMotorEvent eme) {
 		try {
+			ByteArrayOutputStream dataStream = new ByteArrayOutputStream();
+			ObjectOutputStream out = new ObjectOutputStream(dataStream);
+			out.writeObject(eme);
+			byte[] data = dataStream.toByteArray();
+			DatagramPacket packet = new DatagramPacket(data,
+					data.length, InetAddress.getLocalHost(), ElevatorMotorEvent.ELEVATOR_RECEIVE_PORT);
+			printPacketInfo(packet);
 			sendSocket.send(packet); // Send the packet
 		} catch (IOException e) {
 			// Display an error message if the packet cannot be sent.
@@ -158,8 +166,9 @@ public class Scheduler implements Runnable {
 	 *         information as to which Elevator the request will be added to, and if
 	 *         it should do at the front of the back of the workQueue.
 	 */
-	private DatagramPacket schedule(Object work) {
-		if (work instanceof ElevatorFloorArrivalEvent) {
+	private void schedule(Object work) {
+
+		if (work instanceof FloorArrivalEvent) {
 			return;
 		} else if (work instanceof  FloorButtonPressEvent) {
 			FloorButtonPressEvent fbe = (FloorButtonPressEvent) work;
@@ -187,7 +196,6 @@ public class Scheduler implements Runnable {
 			}
 
 			setNextStop(fastestElevator, sourceFloor);
-
 		} else if (work instanceof  CarButtonPressEvent) {
 			CarButtonPressEvent cbe = (CarButtonPressEvent) work;
 			int elevatorNumber = cbe.getElevatorNumber();
@@ -205,7 +213,7 @@ public class Scheduler implements Runnable {
 
 			for (Integer i : stopStack[elevatorNumber]) {
 				if (i == destinationFloor) {
-					return null; // will already stop at this floor
+					return; // will already stop at this floor
 				}
 			}
 
@@ -213,7 +221,7 @@ public class Scheduler implements Runnable {
 				int floor = path.get(i);
 				if (floor == destinationFloor) {
 					setNextStop(elevatorNumber, floor);
-					return null;
+					return;
 				}
 			}
 
@@ -229,8 +237,6 @@ public class Scheduler implements Runnable {
 				}
 			}
 		}
-
-		return new DatagramPacket();
 	}
 
 
@@ -261,54 +267,69 @@ public class Scheduler implements Runnable {
 				}
 			}
 		} else if (Thread.currentThread().getName().matches("Elevator")) {
-			while (true) {
-				if (elevatorListenerNumber == 0 ) {
-					Thread elevatorListener2 = new Thread(this, "ElevatorListener2");
-					elevatorListenerNumber++;
-					elevatorListener2.start();
-				} else {
-					if (Thread.currentThread().getName().equals("ElevatorListener2")) {
-						listenForElevator(true);
-					}
+			if (elevatorListenerNumber == 0 ) {
+				Thread elevatorListener2 = new Thread(this, "ElevatorListener2");
+				elevatorListenerNumber++;
+				elevatorListener2.start();
+			} else {
+				if (Thread.currentThread().getName().equals("ElevatorListener2")) {
+					listenForElevator(true);
 				}
-				listenForElevator(false);
 			}
+			listenForElevator(false);
 		} else {
 			while (true) {
 				Object work = checkWork(); // blocks until rpc places something in queue
-				DatagramPacket packet = schedule(work);
-				if (packet != null) sendPacketToElevator(packet);
+				schedule(work);
 			}
 		}
 	}
 
 
 	private void listenForElevator(boolean carButtonListener) {
-		byte[] request = new byte[DATA_SIZE];
-		DatagramPacket receivePacket = null;
-		try {
-			// Main routine to receive confirmation from
-			receivePacket = new DatagramPacket(request, request.length);
-			if (carButtonListener) {
-				carButtonSocket.receive(receivePacket);
-			} else {
-				elevatorResponseSocket.receive(receivePacket);
-			}
-		} catch (IOException e) {
-			// Display an error if the packet cannot be received
-			System.out.println("Error: Scheduler cannot receive packet.");
-			System.exit(1);
-		}
+		while (true) {
+			byte[] request = new byte[DATA_SIZE];
+			DatagramPacket receivePacket = null;
+			try {
+				// Main routine to receive confirmation from
+				receivePacket = new DatagramPacket(request, request.length);
+				if (carButtonListener) {
+					carButtonSocket.receive(receivePacket);
+				} else {
+					elevatorResponseSocket.receive(receivePacket);
 
-		printPacketInfo(receivePacket);
-		try {
-			if (carButtonListener) {
-				setRequest(receivePacket, 1);
-			} else {
-				setRequest(receivePacket, 2);
+					ByteArrayInputStream bainStream = new ByteArrayInputStream(receivePacket.getData());
+					FloorArrivalEvent arrivalEvent = null;
+
+					try {
+						ObjectInputStream oinStream = new ObjectInputStream(bainStream);
+						arrivalEvent = (FloorArrivalEvent) oinStream.readObject();
+					} catch (IOException e) {
+						e.printStackTrace();
+					} catch (ClassNotFoundException e) {
+						e.printStackTrace();
+					}
+
+					ElevatorMotorEvent eme = new ElevatorMotorEvent(time.now(),
+							arrivalEvent.getElevatorNumber(), stopStack[arrivalEvent.getElevatorNumber()].pop());
+					sendPacketToElevator(eme);
+				}
+			} catch (IOException e) {
+				// Display an error if the packet cannot be received
+				System.out.println("Error: Scheduler cannot receive packet.");
+				System.exit(1);
 			}
-		} catch (InterruptedException | TimeException e) {
-			e.printStackTrace();
+
+			printPacketInfo(receivePacket);
+			try {
+				if (carButtonListener) {
+					setRequest(receivePacket, 1);
+				} else {
+					setRequest(receivePacket, 2);
+				}
+			} catch (InterruptedException | TimeException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 
@@ -328,7 +349,7 @@ public class Scheduler implements Runnable {
 			if (type == 0) {
 				event = (FloorButtonPressEvent) oinStream.readObject();
 			} else if (type == 1) {
-				event = (ElevatorFloorArrivalEvent) oinStream.readObject();
+				event = (FloorArrivalEvent) oinStream.readObject();
 			} else if (type == 2) {
 				event = (CarButtonPressEvent) oinStream.readObject();
 			}
@@ -350,12 +371,15 @@ public class Scheduler implements Runnable {
 	 * @param args The command-line arguments that are passed when compiling the
 	 *             application.
 	 */
-	public static void main(String[] args) {
+	public static void main(String[] args) throws FileNotFoundException {
+		File requestFile = new File(Floor.REQUEST_FILE);
+		Time time = new Time(Time.SECOND_TO_MINUTE / 2, Parser.getStartTime(requestFile));
 		Scheduler scheduler = new Scheduler();
 		System.out.println("---- SCHEDULER SUB SYSTEM ----- \n");
 		Thread elevatorListener = new Thread(scheduler, "ElevatorListener");
 		Thread floorListener = new Thread(scheduler, "FloorListener");
 		Thread workerThread = new Thread(scheduler, "Worker");
+		scheduler.setTime(time);
 		floorListener.start();
 		elevatorListener.start();
 		workerThread.start();

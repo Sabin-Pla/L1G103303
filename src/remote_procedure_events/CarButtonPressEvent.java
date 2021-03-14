@@ -7,6 +7,7 @@ import java.util.Date;
 
 public class CarButtonPressEvent extends TimeEvent {
     public static final int SCHEDULER_LISTEN_PORT = 63 + 1024;
+    public static final int ELEVATOR_LISTEN_PORT = 81 + 1024;
 
     private int sourceFloor;
     private int elevatorNumber;

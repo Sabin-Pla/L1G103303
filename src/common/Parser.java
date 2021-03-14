@@ -37,6 +37,7 @@ public class Parser {
         try {
         	//scan through the request file
             scanner = new Scanner(requestFile);
+            scanner.nextLine(); // ignore 1st line 
             int days = 0;
             //if the file has a new line, store that new line in the queue
             while (scanner.hasNext()) {
@@ -143,5 +144,19 @@ public class Parser {
                 throw new IllegalArgumentException("Invalid floor press time " + pressTime + " group count " + groups);
         }
         return pressTime;
+    }
+
+    public static long getStartTime(File requestFile) throws FileNotFoundException {
+        Scanner scanner = new Scanner(requestFile);
+        String line = scanner.nextLine();
+        line = line.strip();
+        String pressTime = fixFormatting(line.split(" ")[0]); // time the floor button is pressed
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(new Date());
+        String dateTimestamp = new SimpleDateFormat("yyyy-dd-MM").
+                format(calendar.getTime()) + 'T' + pressTime;
+        Date pressDate = new SimpleDateFormat("yyyy-dd-MM'T'HH:mm:ss.SSS'Z'").
+                parse(dateTimestamp, new ParsePosition(0));
+        return pressDate.toInstant().toEpochMilli();
     }
 }
