@@ -1,8 +1,6 @@
 package elevator;
 
-import common.Parser;
-import common.Time;
-import floor.Floor;
+import common.SimulationClock;
 import remote_procedure_events.CarButtonPressEvent;
 import remote_procedure_events.ElevatorMotorEvent;
 import remote_procedure_events.FloorArrivalEvent;
@@ -12,6 +10,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.time.Duration;
 
 
 /**
@@ -25,7 +24,7 @@ public class Elevator extends Thread {
 
 	private final long MOVE_ONE_FLOOR_TIME = 10000;
 
-	private Time time;
+	private SimulationClock clock;
 	private int currentFloor;
 	private int destinationFloor;
 	private DatagramSocket sendSocket, floorSocketReceiver, schedulerSocketReceiver;
@@ -45,14 +44,6 @@ public class Elevator extends Thread {
 		this.sendSocket = new DatagramSocket();
 	}
 
-	private boolean doorsClosed() {
-		return doorsClosed;
-	}
-
-	private void setTime(Time time) {
-		this.time = time;
-	}
-
 	/**
 	 * This method represents the floor which elevator is moving to.
 	 * @param destFloor Destination Floor
@@ -61,10 +52,6 @@ public class Elevator extends Thread {
 		this.destinationFloor = destFloor;
 		System.out.println("Elevator: new destination floor " + destFloor);
 		notifyAll();
-	}
-
-	private int getFloor() {
-		return currentFloor;
 	}
 
 	private void forwardButtonPress(byte[] data) {
@@ -78,7 +65,7 @@ public class Elevator extends Thread {
 	}
 
 	private void reportMovement() {
-		FloorArrivalEvent fae = new FloorArrivalEvent(time.now(), elevatorNumber,  currentFloor);
+		FloorArrivalEvent fae = new FloorArrivalEvent(clock.instant(), elevatorNumber,  currentFloor, doorsClosed);
 		try {
 			ByteArrayOutputStream dataStream = new ByteArrayOutputStream();
 			ObjectOutputStream out = new ObjectOutputStream(dataStream);
@@ -127,7 +114,8 @@ public class Elevator extends Thread {
 			System.out.println("Elevator: moving...");
 
 			try {
-				sleep((long) (MOVE_ONE_FLOOR_TIME / time.getCompressionFactor()));
+				Duration d = Duration.ofMillis(MOVE_ONE_FLOOR_TIME).dividedBy(clock.getCompressionFactor());
+				sleep(d.toMillis());
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
@@ -156,16 +144,13 @@ public class Elevator extends Thread {
 	}
 
 
-	public static void main(String[] args) throws SocketException, FileNotFoundException {
-		File requestFile = new File(Floor.REQUEST_FILE);
-		Time time = new Time(Time.SECOND_TO_MINUTE / 2, Parser.getStartTime(requestFile));
+	public static void main(String[] args) throws SocketException {
 		for(int i=0; i<4; i++) {
 			Elevator elevator = new Elevator(i, 1);
 			Thread mainThread = new Thread(elevator, "main");
 			Thread floorListener = new Thread(elevator, "FloorListener");
 			mainThread.start();
 			floorListener.start();
-			elevator.setTime(time);
 		}
 	}
 }

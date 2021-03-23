@@ -1,17 +1,21 @@
 package remote_procedure_events;
 
 import common.TimeEvent;
+import java.time.Instant;
 
 public class FloorArrivalEvent extends TimeEvent {
     public static final int SCHEDULER_LISTEN_PORT = 60 + 1024;
     public static final int FLOOR_LISTEN_PORT = 61 + 1024;
+    
     private int arrivalFloor;
     private int elevatorNumber;
+    private boolean doorsClosed;
 
-    public FloorArrivalEvent(long eventTime, int elevatorNumber, int arrivalFloor) {
-        super(eventTime);
+    public FloorArrivalEvent(Instant eventInstant, int elevatorNumber, int arrivalFloor, boolean doorsClosed) {
+        super(eventInstant);
         this.arrivalFloor = arrivalFloor;
         this.elevatorNumber = elevatorNumber;
+        this.doorsClosed = doorsClosed;
     }
 
     public int getArrivalFloor() {
@@ -20,5 +24,9 @@ public class FloorArrivalEvent extends TimeEvent {
 
     public int getElevatorNumber() {
         return elevatorNumber;
+    }
+
+    public boolean getDoorsClosed() {
+        return doorsClosed;
     }
 }

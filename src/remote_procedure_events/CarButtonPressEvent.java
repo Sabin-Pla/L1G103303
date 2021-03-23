@@ -1,8 +1,7 @@
 package remote_procedure_events;
 
-import common.InvalidDirectionException;
 import common.TimeEvent;
-
+import java.time.Instant;
 import java.util.Date;
 
 public class CarButtonPressEvent extends TimeEvent {
@@ -17,8 +16,8 @@ public class CarButtonPressEvent extends TimeEvent {
      * Creates a FloorButtonPressEvent for when the floor button is pressed
      *
      */
-    public CarButtonPressEvent(long eventTime, int sourceFloor, int elevatorNumber, int destinationFloor) {
-        super(eventTime);
+    public CarButtonPressEvent(Instant eventInstant, int sourceFloor, int elevatorNumber, int destinationFloor) {
+        super(eventInstant);
         this.sourceFloor = sourceFloor;
         this.elevatorNumber = elevatorNumber;
         this.destinationFloor = destinationFloor;
@@ -40,6 +39,6 @@ public class CarButtonPressEvent extends TimeEvent {
      * @return object in form of human readable string
      */
     public String toString() {
-        return new Date(this.getEventTime()) + " From " + sourceFloor + " To " + destinationFloor;
+        return new Date(this.getEventInstant().toEpochMilli()) + " From " + sourceFloor + " To " + destinationFloor;
     }
 }

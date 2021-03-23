@@ -3,6 +3,7 @@ package remote_procedure_events;
 import common.InvalidDirectionException;
 import common.TimeEvent;
 
+import java.time.Instant;
 import java.util.Date;
 
 public class FloorButtonPressEvent extends TimeEvent {
@@ -25,8 +26,8 @@ public class FloorButtonPressEvent extends TimeEvent {
      * @param floor the floor at which the button was pressed
      * @param goingUp true if the passenger wants to go to a higher floor, otherwise false
      */
-    public FloorButtonPressEvent(int floor, boolean goingUp, long eventTime) throws InvalidDirectionException {
-        super(eventTime);
+    public FloorButtonPressEvent(Instant eventInstant, int floor, boolean goingUp) throws InvalidDirectionException {
+        super(eventInstant);
         this.goingUp = goingUp;
         this.floor = floor;
     }
@@ -45,6 +46,6 @@ public class FloorButtonPressEvent extends TimeEvent {
      * @return object in form of human readable string
      */
     public String toString() {
-        return new Date(this.getEventTime()) + " From " + floor;
+        return new Date(this.getEventInstant().toEpochMilli()) + " From " + floor;
     }
 }

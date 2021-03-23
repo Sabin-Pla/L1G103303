@@ -4,14 +4,13 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.*;
-import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import common.CarButtonEvent;
-import common.RequestElevatorEvent;
-import common.TimeEvent;
+import actor_events.CarButtonEvent;
+import actor_events.RequestElevatorEvent;
 
 /**
  * This class parses the requests from the requests file and converts them into the appropriate Event objects
@@ -20,72 +19,96 @@ import common.TimeEvent;
  * @version Iteration 2
  */
 public class Parser {
+    private Scanner scanner;
+    private ArrayList<RequestElevatorEvent> events;
+    private SimulationClock clock;
+    private int days;
+
+    public ArrayList<RequestElevatorEvent> getEvents() {
+        return events;
+    }
+
+    public SimulationClock getClock() {
+        if (clock == null) {
+            scanner.reset();
+            String simulationParameters = scanner.nextLine();
+            String startTime = simulationParameters.split(" ")[0];
+            int compressionFactor = Integer.parseInt(simulationParameters.split(" ")[1]);
+            Instant simulationStart = parseInstant(startTime, days);
+            clock = new SimulationClock(simulationStart, compressionFactor);
+        }
+        return clock;
+    }
+
+    public void close() {
+        scanner.close();
+    }
+
+    /**
+     *
+     * @param requestFile The file to read requests and configuration info from
+     * @throws FileNotFoundException if the file is not found
+     */
+    public Parser(File requestFile) throws FileNotFoundException {
+        this.scanner = new Scanner(requestFile);
+        this.events = new ArrayList<>();
+    }
 
 	/**
      * This method reads requests from the file and converts the requests to TimeEvent objects.
      * The items in the returned arraylist should be in order by consequence of the fact that events in the request file
      * are entered in order
      *
-     * @param requestFile The file to read request from
-     * @return An array queue of all the requests from the file
      */
-    public static ArrayList<RequestElevatorEvent> getRequestFromFile(File requestFile) {
-   
-        ArrayList<RequestElevatorEvent> events = new ArrayList<>();
-        Scanner scanner;
+    public void parseEvents() throws InvalidDirectionException {
+        events = new ArrayList<>();
+        days = 0;
+        getClock();
 
-        try {
-        	//scan through the request file
-            scanner = new Scanner(requestFile);
-            scanner.nextLine(); // ignore 1st line 
-            int days = 0;
-            //if the file has a new line, store that new line in the queue
-            while (scanner.hasNext()) {
-            	String line = scanner.nextLine();
-                line = line.strip();
-            	String pressTime = line.split(" ")[0]; // time the floor button is pressed
+        //if the file has a new line, store that new line in the queue
+        while (scanner.hasNext()) {
+            String line = scanner.nextLine();
+            line = line.strip();
+            String pressTime = line.split(" ")[0]; // time the floor button is pressed
 
-            	int sourceFloor = Integer.parseInt(line.split(" ")[1]);
-            	boolean goingUp = line.split(" ")[2].equals("Up");
-            	int destinationFloor = Integer.parseInt(line.split(" ")[3]);
+            int sourceFloor = Integer.parseInt(line.split(" ")[1]);
+            boolean goingUp = line.split(" ")[2].equals("Up");
+            int destinationFloor = Integer.parseInt(line.split(" ")[3]);
 
-                pressTime = fixFormatting(pressTime);
+            Instant pressInstant = parseInstant(pressTime, days);
 
-                Calendar calendar = Calendar.getInstance();
-                calendar.setTime(new Date());
-                calendar.add(Calendar.DAY_OF_MONTH, days);
-                String dateTimestamp = new SimpleDateFormat("yyyy-dd-MM").
-                        format(calendar.getTime()) + 'T' + pressTime;
+            CarButtonEvent carButtonEvent = new CarButtonEvent(pressInstant,
+                    destinationFloor);
 
-                Date pressDate = new SimpleDateFormat("yyyy-dd-MM'T'HH:mm:ss.SSS'Z'").
-                        parse(dateTimestamp, new ParsePosition(0));
+            RequestElevatorEvent requestElevatorEvent = new RequestElevatorEvent(
+                    sourceFloor,
+                    goingUp,
+                    carButtonEvent);
 
-                // if the last event added occurs before the time of the current event, assume a day has passed
-                if (events.size() != 0 &&
-                        events.get(events.size() - 1).getEventTime() > pressDate.toInstant().toEpochMilli()) {
-                    days++;
-                    calendar.setTime(pressDate);
-                    calendar.add(Calendar.DAY_OF_MONTH, 1);
-                    pressDate = calendar.getTime();
-                }
-
-                CarButtonEvent carButtonEvent = new CarButtonEvent(pressDate.toInstant().toEpochMilli(),
-                        destinationFloor);
-
-            	RequestElevatorEvent requestElevatorEvent = new RequestElevatorEvent(
-            	        sourceFloor,
-                        goingUp,
-                        carButtonEvent);
-
-                events.add(requestElevatorEvent);
-            }
-            scanner.close();
-        } catch (FileNotFoundException | InvalidDirectionException e) {
-            e.printStackTrace();
-            System.out.println("There was a problem while reading the request.");
-            return null;
+            events.add(requestElevatorEvent);
         }
-        return events;
+    }
+
+    private Instant parseInstant(String timeStamp, int days) {
+        timeStamp = fixFormatting(timeStamp);
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(new Date());
+        calendar.add(Calendar.DAY_OF_MONTH, days);
+        String dateTimestamp = new SimpleDateFormat("yyyy-dd-MM").
+                format(calendar.getTime()) + 'T' + timeStamp;
+        Date pressDate = new SimpleDateFormat("yyyy-dd-MM'T'HH:mm:ss.SSS'Z'").
+                parse(dateTimestamp, new ParsePosition(0));
+
+        // if the last event added occurs before the time of the current event, assume a day has passed
+        if (events.size() != 0 &&
+                events.get(events.size() - 1).getEventInstant().isAfter( pressDate.toInstant() )) {
+            days++;
+            calendar.setTime(pressDate);
+            calendar.add(Calendar.DAY_OF_MONTH, 1);
+            pressDate = calendar.getTime();
+        }
+
+        return pressDate.toInstant();
     }
 
     /**
@@ -144,19 +167,5 @@ public class Parser {
                 throw new IllegalArgumentException("Invalid floor press time " + pressTime + " group count " + groups);
         }
         return pressTime;
-    }
-
-    public static long getStartTime(File requestFile) throws FileNotFoundException {
-        Scanner scanner = new Scanner(requestFile);
-        String line = scanner.nextLine();
-        line = line.strip();
-        String pressTime = fixFormatting(line.split(" ")[0]); // time the floor button is pressed
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(new Date());
-        String dateTimestamp = new SimpleDateFormat("yyyy-dd-MM").
-                format(calendar.getTime()) + 'T' + pressTime;
-        Date pressDate = new SimpleDateFormat("yyyy-dd-MM'T'HH:mm:ss.SSS'Z'").
-                parse(dateTimestamp, new ParsePosition(0));
-        return pressDate.toInstant().toEpochMilli();
     }
 }

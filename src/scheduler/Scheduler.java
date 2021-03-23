@@ -10,7 +10,6 @@ import java.util.Stack;
 
 import common.*;
 
-import floor.ElevatorException;
 import floor.Floor;
 import remote_procedure_events.CarButtonPressEvent;
 import remote_procedure_events.FloorArrivalEvent;
@@ -32,7 +31,7 @@ public class Scheduler implements Runnable {
 
 	private Stack<Integer> intersectingFloors[];
 	private Stack<Integer> stopStack[];
-	private Time time;
+	private static SimulationClock clock;
 
 	private static final int DATA_SIZE = 256;
 
@@ -48,8 +47,8 @@ public class Scheduler implements Runnable {
 		intersectingFloors = new Stack[Floor.NUM_ELEVATORS];
 		stopStack = new Stack[Floor.NUM_ELEVATORS];
 		for (int i=0; i < Floor.NUM_ELEVATORS; i++) {
-			intersectingFloors[i] = new Stack<Integer>();
-			stopStack[i] = new Stack<Integer>();
+			intersectingFloors[i] = new Stack<>();
+			stopStack[i] = new Stack<>();
 		}
 
 		try {
@@ -61,10 +60,6 @@ public class Scheduler implements Runnable {
 			System.out.println("Error: SchedulerSubSystem cannot be initialized.");
 			System.exit(1);
 		}
-	}
-
-	private void setTime(Time time) {
-		this.time = time;
 	}
 
 	/**
@@ -166,7 +161,7 @@ public class Scheduler implements Runnable {
 	 *         information as to which Elevator the request will be added to, and if
 	 *         it should do at the front of the back of the workQueue.
 	 */
-	private void schedule(Object work) {
+	private void schedule(Object work) throws ElevatorPositionException {
 
 		if (work instanceof FloorArrivalEvent) {
 			return;
@@ -204,11 +199,7 @@ public class Scheduler implements Runnable {
 
 			Stack<Integer> path = intersectingFloors[elevatorNumber];
 			if (currentFloor != path.peek()) {
-				try {
-					throw new ElevatorException("wrong elevator position");
-				} catch (ElevatorException e) {
-					e.printStackTrace();
-				}
+				throw new ElevatorPositionException("wrong elevator position");
 			}
 
 			for (Integer i : stopStack[elevatorNumber]) {
@@ -280,7 +271,12 @@ public class Scheduler implements Runnable {
 		} else {
 			while (true) {
 				Object work = checkWork(); // blocks until rpc places something in queue
-				schedule(work);
+				try {
+					schedule(work);
+				} catch (ElevatorPositionException e) {
+					e.printStackTrace();
+					System.exit(1);
+				}
 			}
 		}
 	}
@@ -310,7 +306,7 @@ public class Scheduler implements Runnable {
 						e.printStackTrace();
 					}
 
-					ElevatorMotorEvent eme = new ElevatorMotorEvent(time.now(),
+					ElevatorMotorEvent eme = new ElevatorMotorEvent(clock.instant(),
 							arrivalEvent.getElevatorNumber(), stopStack[arrivalEvent.getElevatorNumber()].pop());
 					sendPacketToElevator(eme);
 				}
@@ -373,13 +369,14 @@ public class Scheduler implements Runnable {
 	 */
 	public static void main(String[] args) throws FileNotFoundException {
 		File requestFile = new File(Floor.REQUEST_FILE);
-		Time time = new Time(Time.SECOND_TO_MINUTE / 2, Parser.getStartTime(requestFile));
+		Parser p = new Parser(requestFile);
+		clock = p.getClock();
+		p.close();
 		Scheduler scheduler = new Scheduler();
 		System.out.println("---- SCHEDULER SUB SYSTEM ----- \n");
 		Thread elevatorListener = new Thread(scheduler, "ElevatorListener");
 		Thread floorListener = new Thread(scheduler, "FloorListener");
 		Thread workerThread = new Thread(scheduler, "Worker");
-		scheduler.setTime(time);
 		floorListener.start();
 		elevatorListener.start();
 		workerThread.start();

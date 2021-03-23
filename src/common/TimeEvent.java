@@ -1,26 +1,23 @@
 package common;
 
+import java.time.Instant;
+
 public class TimeEvent implements Comparable, java.io.Serializable {
 
-    protected static Time time;
-    private long eventTime;
-    private static long PAST_EVENT_LENIENCY = 10000; // any events younger than this many MS are not in the past
+    private Instant eventInstant;
+    public static final long PAST_EVENT_LENIENCY = 5000; // any events younger than this many MS are not in the past
 
     /**
      * Creates an object for an event that happens at a certain time
      *
      * @param eventTime epoch ms time at which event occurs or will occur
      */
-    public TimeEvent(long eventTime) {
-        this.eventTime = eventTime;
+    public TimeEvent(Instant eventTime) {
+        this.eventInstant = eventTime;
     }
 
-    public void setTime(Time time) {
-        this.time = time;
-    }
-
-    public long getEventTime() {
-        return eventTime;
+    public Instant getEventInstant() {
+        return eventInstant;
     }
 
     /**
@@ -34,13 +31,11 @@ public class TimeEvent implements Comparable, java.io.Serializable {
     @Override
     public int compareTo(Object o) {
         if (o instanceof TimeEvent) {
-            long difference = eventTime - ((TimeEvent) o).getEventTime();
-            if (difference > 0) {
+            boolean after = eventInstant.minusMillis(PAST_EVENT_LENIENCY).isAfter(((TimeEvent) o).getEventInstant());
+            if (after) {
                 return 1;
-            } else if (difference < 0) {
-                return - 1;
             } else {
-                return 0;
+                return -1;
             }
         } else {
             throw new IllegalArgumentException("Object cannot be compared against a non-TimeEvent object");
@@ -52,16 +47,7 @@ public class TimeEvent implements Comparable, java.io.Serializable {
      *
      * @return true if the event occurrence time is more than PAST_EVENT_LENIENCY ms in the past
      */
-    public boolean hasPassed() {
-        return time.now() > eventTime + (long) (PAST_EVENT_LENIENCY * time.getCompressionFactor());
-    }
-
-    /**
-     * Gets the time object used by all events
-     *
-     * @return the time object used by all events
-     */
-    public Time getTime() {
-        return this.time;
+    public boolean hasPassed(SimulationClock clock) {
+        return eventInstant.isBefore(clock.instant().minusMillis(PAST_EVENT_LENIENCY));
     }
 }

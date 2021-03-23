@@ -1,10 +1,14 @@
-package common;
+package actor_events;
 
+import common.InvalidDirectionException;
+import common.TimeEvent;
+
+import java.time.Instant;
 import java.util.Date;
 
 public class CarButtonEvent extends TimeEvent {
 
-    private long eventTime;
+    private Instant eventInstant;
     private int destinationFloor;
 
     /**
@@ -16,10 +20,10 @@ public class CarButtonEvent extends TimeEvent {
      * @throws InvalidDirectionException if the elevator is requested up to go to a higher floor, or down to a
      * lower floor
      */
-    public CarButtonEvent(long eventTime, int destinationFloor) throws InvalidDirectionException {
-        super(eventTime);
+    public CarButtonEvent(Instant eventInstant, int destinationFloor) throws InvalidDirectionException {
+        super(eventInstant);
 
-        this.eventTime = eventTime;
+        this.eventInstant = eventInstant;
         this.destinationFloor = destinationFloor;
     }
 
@@ -38,6 +42,6 @@ public class CarButtonEvent extends TimeEvent {
      * @return object in form of human readable string
      */
     public String toString() {
-        return new Date(this.getEventTime()) + " boarding. going to floor " + this.getDestinationFloor();
+        return new Date(getEventInstant().toEpochMilli()) + " boarding. going to floor " + this.getDestinationFloor();
     }
 }
