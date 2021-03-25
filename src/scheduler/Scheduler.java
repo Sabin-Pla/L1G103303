@@ -162,7 +162,6 @@ public class Scheduler implements Runnable {
 	 *         it should do at the front of the back of the workQueue.
 	 */
 	private void schedule(Object work) throws ElevatorPositionException {
-
 		if (work instanceof FloorArrivalEvent) {
 			return;
 		} else if (work instanceof  FloorButtonPressEvent) {
