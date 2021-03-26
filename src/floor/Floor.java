@@ -11,7 +11,6 @@ import remote_procedure_events.FloorButtonPressEvent;
 import java.io.*;
 import java.net.*;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 
 /**
@@ -20,7 +19,7 @@ import java.util.ArrayList;
  * A Floor thread must be notified every time the elevator comes and leaves at its floor
  * 
  * @author Sabin Plaiasu
- * @version Iteration 3
+ * @version Iteration 4
  */
 public class Floor {
 
@@ -134,12 +133,15 @@ public class Floor {
 						data.length, InetAddress.getLocalHost(), CarButtonPressEvent.ELEVATOR_LISTEN_PORT);
 				sendSocket.send(sendPacket);
 			} else if (event instanceof RequestElevatorEvent) {
-				out.writeObject(event);
+				RequestElevatorEvent reev = (RequestElevatorEvent) event;
+				FloorButtonPressEvent fbpe = new FloorButtonPressEvent(reev.getEventInstant(),
+						reev.getFloor(), reev.isGoingUp());
+				out.writeObject(fbpe);
 				byte[] data = dataStream.toByteArray();
 				DatagramPacket sendPacket = new DatagramPacket(data,
 						data.length, InetAddress.getLocalHost(), FloorButtonPressEvent.SCHEDULER_LISTEN_PORT);
 				sendSocket.send(sendPacket);
-				carButtonEventQueue.addNoValidate(((RequestElevatorEvent) event).getCarButtonEvent());
+				carButtonEventQueue.addNoValidate(reev.getCarButtonEvent());
 			}
 			out.close();
 		} catch (IOException e) {
@@ -180,7 +182,7 @@ public class Floor {
 		clock.start();
 
 		System.out.println("Simulation started...");
-		
+
 		while (true) {
 			try {
 				while (!actorEventQueue.isEmpty()) {

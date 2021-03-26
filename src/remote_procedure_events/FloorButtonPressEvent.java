@@ -26,7 +26,7 @@ public class FloorButtonPressEvent extends TimeEvent {
      * @param floor the floor at which the button was pressed
      * @param goingUp true if the passenger wants to go to a higher floor, otherwise false
      */
-    public FloorButtonPressEvent(Instant eventInstant, int floor, boolean goingUp) throws InvalidDirectionException {
+    public FloorButtonPressEvent(Instant eventInstant, int floor, boolean goingUp)  {
         super(eventInstant);
         this.goingUp = goingUp;
         this.floor = floor;

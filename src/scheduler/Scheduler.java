@@ -20,11 +20,10 @@ import remote_procedure_events.FloorButtonPressEvent;
  * This scheduler is the middle man between the elevator and
  * the floor sub systems. It schedules requests for both subsystems
  *
- * @author Harshil Verma, Mmedara Josiah
- * @version Iteration 2
+ * @author Harshil Verma, Mmedara Josiah, Sabin Plaiasu
+ * @version Iteration 4
  */
 public class Scheduler implements Runnable {
-	// maximum amount of time (ms) an elevator should take to fulfill any request
 	private TimeQueue timeQueue;
 
 	private static int elevatorListenerNumber = 0;
@@ -34,14 +33,8 @@ public class Scheduler implements Runnable {
 	private static SimulationClock clock;
 
 	private static final int DATA_SIZE = 256;
-
-	private DatagramPacket sendPacket, receiveElevatorInfo;
 	private DatagramSocket floorSocketReceiver, carButtonSocket, elevatorResponseSocket, sendSocket;
 
-
-	/**
-	 * Constructor
-	 */
 	public Scheduler() {
 		timeQueue = new TimeQueue();
 		intersectingFloors = new Stack[Floor.NUM_ELEVATORS];
@@ -58,23 +51,6 @@ public class Scheduler implements Runnable {
 			sendSocket = new DatagramSocket();
 		} catch(SocketException e) {
 			System.out.println("Error: SchedulerSubSystem cannot be initialized.");
-			System.exit(1);
-		}
-	}
-
-	/**
-	 * Routine to create a DatagramPacket that will be sent.
-	 *
-	 * @param message The byte[] data the DatagramPacket will contain.
-	 */
-	private void createPacket(byte[] message) {
-		try {
-			// Initialize and create a send packet
-			sendPacket = new DatagramPacket(message, message.length, InetAddress.getLocalHost(),
-					ElevatorMotorEvent.ELEVATOR_RECEIVE_PORT);
-		} catch (UnknownHostException e) {
-			// Display an error message if the packet cannot be created.
-			System.out.println("Error: Scheduler could not create packet.");
 			System.exit(1);
 		}
 	}
@@ -235,14 +211,16 @@ public class Scheduler implements Runnable {
 	 */
 	@Override
 	public void run() {
-		if (Thread.currentThread().getName().matches("Floor")) {
+		if (Thread.currentThread().getName().equals("FloorListener")) {
 			// Main routine to receive request information from the FloorSubsystem.
 			while (true) {
 				byte[] request = new byte[DATA_SIZE];
 				DatagramPacket receivePacket = null;
 				try {
 					receivePacket = new DatagramPacket(request, request.length);
+					System.out.println("receiving..");
 					floorSocketReceiver.receive(receivePacket);
+					System.out.println("received");
 				} catch (IOException e) {
 					// Display an error if the packet cannot be received
 					System.out.println("Error: Scheduler cannot receive packet.");
@@ -354,9 +332,7 @@ public class Scheduler implements Runnable {
 			return;
 		}
 
-		if (!timeQueue.add(event)) {
-			throw new TimeException("Cannot schedule event in the past!");
-		}
+		timeQueue.addNoValidate(event);
 		notifyAll();
 	}
 
