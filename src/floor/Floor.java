@@ -9,11 +9,9 @@ import remote_procedure_events.FloorArrivalEvent;
 import remote_procedure_events.FloorButtonPressEvent;
 
 import java.io.*;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
+import java.net.*;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 
 /**
@@ -24,7 +22,7 @@ import java.util.ArrayList;
  * @author Sabin Plaiasu
  * @version Iteration 3
  */
-public class Floor extends Thread {
+public class Floor {
 
 	public static final long MAXIMUM_WAIT_TIME = 120000; // max amount of time (ms) a thread should wait for an elevator
 	public static final int NUM_FLOORS = 10;
@@ -33,81 +31,60 @@ public class Floor extends Thread {
 	
 	private final int floorNumber;
 	private static SimulationClock clock;
-	private TimeQueue eventQueue;
-	private TimeQueue carButtonEvents;
+	private static TimeQueue actorEventQueue;
+	private TimeQueue carButtonEventQueue;
 	private boolean floorLamps[];
 	private DatagramSocket sendSocket;
-	private DatagramSocket receiveSocket;
-	private int elevatorFloors[];
+	private static DatagramSocket receiveSocket;
+	private static int elevatorFloors[];
+	private static Floor[] floors;
 
 	/**
 	 * Constructor initializes all variables
 	 */
-	public Floor(int floorNumber, TimeQueue eventQueue) throws SocketException {
+	public Floor(int floorNumber) throws SocketException {
 		this.floorNumber = floorNumber;
-		this.eventQueue = eventQueue;
 		this.floorLamps = new boolean[2];
-		this.carButtonEvents = new TimeQueue();
+		this.carButtonEventQueue = new TimeQueue();
 		this.sendSocket = new DatagramSocket();
-		this.receiveSocket = new DatagramSocket(FloorArrivalEvent.FLOOR_LISTEN_PORT);
 		this.elevatorFloors = new int[NUM_ELEVATORS];
 		for (int i=0; i < NUM_ELEVATORS; i++) {
 			elevatorFloors[i] = 1;  // assume all elevators are at floor 1 to start
 		}
-		setName("Floor " + floorNumber);
-
 	}
 
-	/**
-	 * Runs the floor thread
-	 */
-	@Override
-	public void run() {
-		while (true) {
-			try {
-				while (!eventQueue.isEmpty()) {
-					while (!eventQueue.peekEvent().hasPassed(clock)) {
-						waitOnElevator((int) eventQueue.calculateWaitTime());
-					}
-					TimeEvent nextEvent = eventQueue.nextEvent();
-					System.out.println("Sending event to scheduler from floor " + floorNumber);
-					System.out.println((RequestElevatorEvent) nextEvent);
-
-
-					sendEvent(nextEvent, 0);
-					carButtonEvents.add(((RequestElevatorEvent) nextEvent).getCarButtonEvent());
-				}
-				waitOnElevator(0);
-			} catch (ElevatorWaitTimeException e) {
-				e.printStackTrace();
-				System.exit(1);
-			}
-		}
+	public static void setReceiveSocket(int listenPort) throws SocketException {
+		receiveSocket = new DatagramSocket(listenPort);
 	}
 
-	public void waitOnElevator(int timeout) throws ElevatorWaitTimeException {
+	public static void waitOnElevator(Duration timeout) throws ElevatorWaitTimeException {
 		byte data[] = new byte[256];
 		DatagramPacket receivePacket = new DatagramPacket(data, data.length);
 		try {
-			receiveSocket.setSoTimeout(timeout);
+			if (timeout == null) {
+				receiveSocket.setSoTimeout(0);
+			} else {
+				receiveSocket.setSoTimeout((int) timeout.toMillis());
+			}
 			receiveSocket.receive(receivePacket);
+		} catch (SocketTimeoutException e) {
+			return;
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-
-		// TODO: Make sure that if recieveSocket times out the code never reaches this line before exiting
-
+		// the elevator has arrived
 		ByteArrayInputStream bainStream = new ByteArrayInputStream(receivePacket.getData());
 		FloorArrivalEvent arrivalEvent = null;
-
 		try {
 			ObjectInputStream oinStream = new ObjectInputStream(bainStream);
 			arrivalEvent = (FloorArrivalEvent) oinStream.readObject();
 		} catch (IOException | ClassNotFoundException e) {
 			e.printStackTrace();
 		}
-
-		elevatorMoved(arrivalEvent.getElevatorNumber(), arrivalEvent.getArrivalFloor());
+		int elevatorNumber = arrivalEvent.getElevatorNumber();
+		int arrivalFloor = arrivalEvent.getArrivalFloor();
+		elevatorFloors[elevatorNumber] = arrivalFloor;
+		floors[arrivalFloor].elevatorArrived(elevatorNumber);
 	}
 
 	/**
@@ -118,24 +95,24 @@ public class Floor extends Thread {
 	 * If there are car button events, dispatch those to the elevator/scheduler.
 	 *
 	 */
-	public void elevatorMoved(int elevatorNumber, int floor) throws ElevatorWaitTimeException {
-		elevatorFloors[elevatorNumber] = floor;
-		if (floor == floorNumber) {
-				floorLamps[elevatorNumber] = true;
-				System.out.println("Floor " + floorNumber + " turning Lamp on");
-				while (!carButtonEvents.isEmpty()) {
-					CarButtonEvent event = (CarButtonEvent) carButtonEvents.nextEvent();
-					Duration waitTime = Duration.between(event.getEventInstant(), clock.instant());
-					if (waitTime.toMillis() > MAXIMUM_WAIT_TIME) {
-						throw new ElevatorWaitTimeException("Passenger waited more than " + MAXIMUM_WAIT_TIME + " ms");
-					}
-					System.out.println("\nFloor: Sending car button press event to elevator. To " +
-							event.getDestinationFloor());
-					sendEvent(event, elevatorNumber);
-				}
-		} else if (floorLamps[elevatorNumber]) {
-			System.out.println("Floor " + floorNumber + "turning lamp off");
-			floorLamps[elevatorNumber] = false;
+	public void elevatorArrived(int elevatorNumber) throws ElevatorWaitTimeException {
+		floorLamps[elevatorNumber] = true;
+		System.out.println("Floor " + floorNumber + " turning Lamp on");
+
+		while (!carButtonEventQueue.isEmpty()) {
+			CarButtonEvent event = (CarButtonEvent) carButtonEventQueue.nextEvent();
+			Duration waitTime = Duration.between(event.getEventInstant(), clock.instant());
+			if (waitTime.toMillis() > MAXIMUM_WAIT_TIME) {
+				throw new ElevatorWaitTimeException("Passenger waited more than " + MAXIMUM_WAIT_TIME + " ms");
+			}
+			System.out.println("\nFloor: Sending car button press event to elevator. To " +
+					event.getDestinationFloor());
+			sendEvent(event, elevatorNumber);
+		}
+
+		if (floorLamps[elevatorNumber]) {
+		 System.out.println("Floor " + floorNumber + "turning lamp off");
+		 floorLamps[elevatorNumber] = false;
 		}
 	}
 
@@ -162,8 +139,8 @@ public class Floor extends Thread {
 				DatagramPacket sendPacket = new DatagramPacket(data,
 						data.length, InetAddress.getLocalHost(), FloorButtonPressEvent.SCHEDULER_LISTEN_PORT);
 				sendSocket.send(sendPacket);
+				carButtonEventQueue.addNoValidate(((RequestElevatorEvent) event).getCarButtonEvent());
 			}
-
 			out.close();
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -178,33 +155,49 @@ public class Floor extends Thread {
 		clock = p.getClock();
 		ArrayList<RequestElevatorEvent> events = p.getEvents();
 		p.close();
-
 		System.out.println("Events to be sent: ");
 		for (RequestElevatorEvent event : events) {
 			System.out.println(event);
 		}
-
-		Floor[] floors = new Floor[NUM_FLOORS];
+		floors = new Floor[NUM_FLOORS];
+		actorEventQueue = new TimeQueue();
+		actorEventQueue.setClock(clock);
 
 		for (int i=0; i < NUM_FLOORS; i++) {
-			TimeQueue floorEvents = new TimeQueue();
 			for (RequestElevatorEvent event : events) {
 				if (event.getFloor() == i + 1)  {
-					if (!floorEvents.add(event)) {
+					if (!actorEventQueue.add(event)) {
 						System.out.println("error, simulation with expired time added");
 						return;
 					}
 				}
 			}
-
-			floorEvents.setClock(clock);
-			Floor floor = new Floor(i+1, floorEvents);
+			Floor floor = new Floor(i+1);
 			floors[i] = floor;
 		}
 
+		setReceiveSocket(FloorArrivalEvent.FLOOR_LISTEN_PORT);
 		clock.start();
-		for (Floor f: floors) {
-			f.start();
+
+		System.out.println("Simulation started...");
+		
+		while (true) {
+			try {
+				while (!actorEventQueue.isEmpty()) {
+					while (!actorEventQueue.peekEvent().hasPassed(clock)) {
+						Duration waitTime = actorEventQueue.calculateWaitTime();
+						waitOnElevator(waitTime);
+					}
+					TimeEvent nextEvent = actorEventQueue.nextEvent();
+					System.out.println((RequestElevatorEvent) nextEvent);
+					floors[((RequestElevatorEvent) nextEvent).getFloor()].sendEvent(nextEvent, 0);
+				}
+				System.out.println("All events sent.");
+				waitOnElevator(null);
+			} catch (ElevatorWaitTimeException e) {
+				e.printStackTrace();
+				System.exit(1);
+			}
 		}
 	}
 	

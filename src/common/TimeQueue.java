@@ -6,7 +6,7 @@ import java.util.concurrent.PriorityBlockingQueue;
 
 public class TimeQueue extends PriorityBlockingQueue {
 
-    private SimulationClock clock;
+    private static SimulationClock clock;
 
     private void validateEvent(Object o) throws Exception {
         if (!(o instanceof TimeEvent)) {
@@ -26,11 +26,11 @@ public class TimeQueue extends PriorityBlockingQueue {
      *
      * @return the amount of time in miliseconds before the next event according to events time object
      */
-    public long calculateWaitTime() {
+    public Duration calculateWaitTime() {
         Instant now = clock.instant();
         Instant nextEventInstant = peekEvent().getEventInstant();
         Duration d = Duration.between(now, nextEventInstant);
-        return d.dividedBy(clock.getCompressionFactor()).toMillis();
+        return d.dividedBy(clock.getCompressionFactor());
     }
 
     @Override
@@ -38,9 +38,15 @@ public class TimeQueue extends PriorityBlockingQueue {
         try {
             validateEvent(o);
             return super.add(o);
-        } catch (Exception ignored) {
-            return false;
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.exit(1);
         }
+        return false;
+    }
+
+    public boolean addNoValidate(Object o) {
+        return super.add(o);
     }
 
     @Override

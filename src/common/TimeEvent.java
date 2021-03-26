@@ -48,6 +48,6 @@ public class TimeEvent implements Comparable, java.io.Serializable {
      * @return true if the event occurrence time is more than PAST_EVENT_LENIENCY ms in the past
      */
     public boolean hasPassed(SimulationClock clock) {
-        return eventInstant.isBefore(clock.instant().minusMillis(PAST_EVENT_LENIENCY));
+        return eventInstant.isBefore(clock.instant().plusMillis(PAST_EVENT_LENIENCY));
     }
 }

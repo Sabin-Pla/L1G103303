@@ -26,6 +26,7 @@ public class SimulationClock extends Clock {
 
     @Override
     public Instant instant() {
+        if (actualStartInstant == null) return startInstant;
         Instant now = Instant.now();
         long seconds = now.getEpochSecond() - actualStartInstant.getEpochSecond();
         int nanos = now.getNano() - actualStartInstant.getNano();
