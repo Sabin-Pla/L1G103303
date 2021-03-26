@@ -1,6 +1,7 @@
 package tests;
 
 import actor_events.RequestElevatorEvent;
+import floor.InvalidDirectionException;
 import org.junit.Test;
 
 import common.*;

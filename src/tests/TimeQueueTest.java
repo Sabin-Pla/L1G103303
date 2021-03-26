@@ -12,6 +12,7 @@ import actor_events.RequestElevatorEvent;
 import common.*;
 import org.junit.Before;
 import org.junit.Test;
+import floor.InvalidDirectionException;
 
 public class TimeQueueTest {
 

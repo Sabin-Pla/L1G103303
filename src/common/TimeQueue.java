@@ -27,10 +27,10 @@ public class TimeQueue extends PriorityBlockingQueue {
      * @return the amount of time in miliseconds before the next event according to events time object
      */
     public long calculateWaitTime() {
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         Instant nextEventInstant = peekEvent().getEventInstant();
         Duration d = Duration.between(now, nextEventInstant);
-        return d.toMillis() / clock.getCompressionFactor();
+        return d.dividedBy(clock.getCompressionFactor()).toMillis();
     }
 
     @Override

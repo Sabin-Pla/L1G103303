@@ -29,7 +29,7 @@ public class Floor extends Thread {
 	public static final long MAXIMUM_WAIT_TIME = 120000; // max amount of time (ms) a thread should wait for an elevator
 	public static final int NUM_FLOORS = 10;
 	public static final int NUM_ELEVATORS = 2;
-	public static final String REQUEST_FILE = "src/requestsFile.txt";
+	public static final String REQUEST_FILE = "common/requestsFile.txt";
 	
 	private final int floorNumber;
 	private static SimulationClock clock;
@@ -70,8 +70,9 @@ public class Floor extends Thread {
 						waitOnElevator((int) eventQueue.calculateWaitTime());
 					}
 					TimeEvent nextEvent = eventQueue.nextEvent();
-					System.out.println("\nFloor:\nSending event to scheduler from floor " + floorNumber);
-					System.out.println(nextEvent);
+					System.out.println("Sending event to scheduler from floor " + floorNumber);
+					System.out.println((RequestElevatorEvent) nextEvent);
+
 
 					sendEvent(nextEvent, 0);
 					carButtonEvents.add(((RequestElevatorEvent) nextEvent).getCarButtonEvent());
@@ -93,6 +94,8 @@ public class Floor extends Thread {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+
+		// TODO: Make sure that if recieveSocket times out the code never reaches this line before exiting
 
 		ByteArrayInputStream bainStream = new ByteArrayInputStream(receivePacket.getData());
 		FloorArrivalEvent arrivalEvent = null;
@@ -116,10 +119,11 @@ public class Floor extends Thread {
 	 *
 	 */
 	public void elevatorMoved(int elevatorNumber, int floor) throws ElevatorWaitTimeException {
+		elevatorFloors[elevatorNumber] = floor;
 		if (floor == floorNumber) {
 				floorLamps[elevatorNumber] = true;
 				System.out.println("Floor " + floorNumber + " turning Lamp on");
-				if (!carButtonEvents.isEmpty()) {
+				while (!carButtonEvents.isEmpty()) {
 					CarButtonEvent event = (CarButtonEvent) carButtonEvents.nextEvent();
 					Duration waitTime = Duration.between(event.getEventInstant(), clock.instant());
 					if (waitTime.toMillis() > MAXIMUM_WAIT_TIME) {
@@ -129,11 +133,10 @@ public class Floor extends Thread {
 							event.getDestinationFloor());
 					sendEvent(event, elevatorNumber);
 				}
-		} else if (floorLamps[elevatorNumber]){
+		} else if (floorLamps[elevatorNumber]) {
 			System.out.println("Floor " + floorNumber + "turning lamp off");
 			floorLamps[elevatorNumber] = false;
 		}
-		elevatorFloors[elevatorNumber] = floor;
 	}
 
 
@@ -153,7 +156,7 @@ public class Floor extends Thread {
 				DatagramPacket sendPacket = new DatagramPacket(data,
 						data.length, InetAddress.getLocalHost(), CarButtonPressEvent.ELEVATOR_LISTEN_PORT);
 				sendSocket.send(sendPacket);
-			} else if (event instanceof FloorButtonPressEvent) {
+			} else if (event instanceof RequestElevatorEvent) {
 				out.writeObject(event);
 				byte[] data = dataStream.toByteArray();
 				DatagramPacket sendPacket = new DatagramPacket(data,

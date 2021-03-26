@@ -1,6 +1,6 @@
 package actor_events;
 
-import common.InvalidDirectionException;
+import floor.InvalidDirectionException;
 import common.TimeEvent;
 
 import java.util.Date;

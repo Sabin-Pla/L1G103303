@@ -1,4 +1,4 @@
-package common;
+package floor;
 
 /**
  * An exception for if "going down" to a higher floor or "going up" to a lower floor

@@ -1,7 +1,7 @@
 package tests;
 
 import actor_events.CarButtonEvent;
-import common.InvalidDirectionException;
+import floor.InvalidDirectionException;
 import actor_events.RequestElevatorEvent;
 import org.junit.Test;
 

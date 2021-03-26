@@ -1,6 +1,6 @@
 package remote_procedure_events;
 
-import common.InvalidDirectionException;
+import floor.InvalidDirectionException;
 import common.TimeEvent;
 
 import java.time.Instant;

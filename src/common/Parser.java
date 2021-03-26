@@ -11,6 +11,7 @@ import java.util.regex.Pattern;
 
 import actor_events.CarButtonEvent;
 import actor_events.RequestElevatorEvent;
+import floor.InvalidDirectionException;
 
 /**
  * This class parses the requests from the requests file and converts them into the appropriate Event objects
@@ -30,7 +31,6 @@ public class Parser {
 
     public SimulationClock getClock() {
         if (clock == null) {
-            scanner.reset();
             String simulationParameters = scanner.nextLine();
             String startTime = simulationParameters.split(" ")[0];
             int compressionFactor = Integer.parseInt(simulationParameters.split(" ")[1]);
