@@ -1,4 +1,7 @@
-package common;
+package actor_events;
+
+import common.InvalidDirectionException;
+import common.TimeEvent;
 
 import java.util.Date;
 
@@ -17,7 +20,7 @@ public class RequestElevatorEvent extends TimeEvent {
      */
     public RequestElevatorEvent(int floor, boolean goingUp, CarButtonEvent carButtonEvent)
             throws InvalidDirectionException {
-        super(carButtonEvent.getEventTime());
+        super(carButtonEvent.getEventInstant());
         this.goingUp = goingUp;
         this.floor = floor;
         this.carButtonEvent = carButtonEvent;
@@ -58,6 +61,7 @@ public class RequestElevatorEvent extends TimeEvent {
      * @return object in form of human readable string
      */
     public String toString() {
-        return new Date(this.getEventTime()) + " From " + floor + " To " +  carButtonEvent.getDestinationFloor();
+        return new Date(getEventInstant().toEpochMilli()) +
+                " From " + floor + " To " +  carButtonEvent.getDestinationFloor();
     }
 }

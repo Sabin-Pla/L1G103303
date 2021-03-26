@@ -1,19 +1,21 @@
 package tests;
 
-import common.CarButtonEvent;
+import actor_events.CarButtonEvent;
 import common.InvalidDirectionException;
-import common.RequestElevatorEvent;
+import actor_events.RequestElevatorEvent;
 import org.junit.Test;
+
+import java.time.Instant;
 
 public class CarButtonEventTest {
 
     @Test(expected = InvalidDirectionException.class)
     public void CarButton() throws InvalidDirectionException {
-        long now = System.currentTimeMillis();
+        Instant now = Instant.now();
         CarButtonEvent carButtonEvent = new CarButtonEvent(now, 2);
         assert (carButtonEvent != null);
         assert (carButtonEvent.getDestinationFloor() == 2);
-        assert (carButtonEvent.getEventTime() == now);
+        assert (carButtonEvent.getEventInstant().equals(now));
         RequestElevatorEvent requestElevatorEvent = new RequestElevatorEvent( 7, false, carButtonEvent);
         assert (requestElevatorEvent != null);
         RequestElevatorEvent invalidEvent = new RequestElevatorEvent( 7, true, carButtonEvent);

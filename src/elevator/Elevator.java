@@ -1,99 +1,47 @@
 package elevator;
 
-import common.CarButtonEvent;
-import floor.ElevatorException;
-import floor.Floor;
+import common.SimulationClock;
 import remote_procedure_events.CarButtonPressEvent;
-import scheduler.Scheduler;
-import common.Time;
+import remote_procedure_events.ElevatorMotorEvent;
+import remote_procedure_events.FloorArrivalEvent;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.time.Duration;
 
 
 /**
  * This class models the elevator
  *
- * @author Mmedara Josiah, Sabin Plaiasu
- * @version Iteration 2
+ * @author Mmedara Josiah, Sabin Plaiasu, John Afolayan
+ * @version Iteration 3
  *
  */
 public class Elevator extends Thread {
 
 	private final long MOVE_ONE_FLOOR_TIME = 10000;
 
-	private Scheduler scheduler;
+	private SimulationClock clock;
 	private int currentFloor;
-	static private Time time;
 	private int destinationFloor;
-	private DatagramSocket sendSocket;
+	private DatagramSocket sendSocket, floorSocketReceiver, schedulerSocketReceiver;
 	private boolean doorsClosed;
 	private int elevatorNumber;
 
 	/**
 	 * Constructor
 	 */
-	public Elevator(int elevatorNumber, int currentFloor, Time time) throws SocketException {
+	public Elevator(int elevatorNumber, int currentFloor) throws SocketException {
 		this.elevatorNumber = elevatorNumber;
 		this.currentFloor = currentFloor;
 		this.destinationFloor = currentFloor;
-		this.time = time;
-
 		this.doorsClosed = true;
+		this.schedulerSocketReceiver = new DatagramSocket(ElevatorMotorEvent.ELEVATOR_RECEIVE_PORT);
+		this.floorSocketReceiver = new DatagramSocket(CarButtonPressEvent.ELEVATOR_LISTEN_PORT);
 		this.sendSocket = new DatagramSocket();
-	}
-
-	@Override
-	public void run() {
-		while (true) {
-			while (currentFloor == destinationFloor) {
-				doorsClosed = false;
-				try {
-					notifyAll(); // let sensors know elevator has stopped
-					wait();
-				} catch (InterruptedException e) {
-					doorsClosed = true;
-				}
-			}
-
-			while (scheduler.getLastSensor() != currentFloor) {
-				try {
-					wait();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-			System.out.println("\nElevator: moving...");
-
-			try {
-				sleep((long) (MOVE_ONE_FLOOR_TIME / time.getCompressionFactor()));
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-
-			if (currentFloor > destinationFloor) {
-				currentFloor -= 1;
-				System.out.println("\nElevator: Down 1 floor, now at " + currentFloor);
-			} else {
-				currentFloor += 1;
-				System.out.println("\nElevator: Up 1 floor, now at " + currentFloor);
-			}
-
-			reportArrival();
-		}
-	}
-
-	/**
-	 *
-	 * @return Current floor
-	 */
-	public Integer getCurrentFloor(){
-		return currentFloor;
 	}
 
 	/**
@@ -102,35 +50,107 @@ public class Elevator extends Thread {
 	 */
 	public void move(int destFloor) {
 		this.destinationFloor = destFloor;
-		System.out.println("\nElevator: new destination floor " + destFloor);
+		System.out.println("Elevator: new destination floor " + destFloor);
 		notifyAll();
 	}
 
-	public int getFloor() {
-		return currentFloor;
-	}
-
-	public void sendCarButtonPress(CarButtonEvent event) {
+	private void forwardButtonPress(byte[] data) {
 		try {
-			ByteArrayOutputStream dataStream = new ByteArrayOutputStream();
-			ObjectOutputStream out = new ObjectOutputStream(dataStream);
-			out.writeObject(event);
-			out.close();
-
-			byte[] data = dataStream.toByteArray();
-			DatagramPacket  sendPacket = new DatagramPacket(data,
+			DatagramPacket packet = new DatagramPacket(data,
 					data.length, InetAddress.getLocalHost(), CarButtonPressEvent.SCHEDULER_LISTEN_PORT);
-			sendSocket.send(sendPacket);
-		} catch (InterruptedException | ElevatorException | IOException e) {
+			sendSocket.send(packet);
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
 
-	public void reportArrival() {
-		// reports arrival to Floor and Scheduler
+	private void reportMovement() {
+		FloorArrivalEvent fae = new FloorArrivalEvent(clock.instant(), elevatorNumber,  currentFloor, doorsClosed);
+		try {
+			ByteArrayOutputStream dataStream = new ByteArrayOutputStream();
+			ObjectOutputStream out = new ObjectOutputStream(dataStream);
+			out.writeObject(fae);
+			out.close();
+
+			byte[] data = dataStream.toByteArray();
+			DatagramPacket schedulerPacket = new DatagramPacket(data,
+					data.length, InetAddress.getLocalHost(), FloorArrivalEvent.SCHEDULER_LISTEN_PORT);
+			sendSocket.send(schedulerPacket);
+			DatagramPacket floorPacket = new DatagramPacket(data,
+					data.length, InetAddress.getLocalHost(), FloorArrivalEvent.FLOOR_LISTEN_PORT);
+			sendSocket.send(floorPacket);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
-	public boolean doorsClosed() {
-		return doorsClosed;
+	@Override
+	public void run() {
+		while (Thread.currentThread().getName().equals("main")) {
+			while (currentFloor == destinationFloor) {
+				doorsClosed = false;
+				try {
+					byte data[] = new byte[256];
+					DatagramPacket moveEventPacket = new DatagramPacket(data, data.length);;
+					schedulerSocketReceiver.receive(moveEventPacket);
+					try {
+						ByteArrayInputStream bainStream = new ByteArrayInputStream(moveEventPacket.getData());
+						ObjectInputStream oinStream = new ObjectInputStream(bainStream);
+						ElevatorMotorEvent eme = (ElevatorMotorEvent) oinStream.readObject();
+						destinationFloor = eme.getArrivalFloor();
+					} catch (IOException e) {
+						e.printStackTrace();
+					} catch (ClassNotFoundException e) {
+						e.printStackTrace();
+						return;
+					}
+
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+
+			doorsClosed = false;
+			System.out.println("Elevator: moving...");
+
+			try {
+				Duration d = Duration.ofMillis(MOVE_ONE_FLOOR_TIME).dividedBy(clock.getCompressionFactor());
+				sleep(d.toMillis());
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+
+			if (currentFloor > destinationFloor) {
+				currentFloor -= 1;
+				System.out.println("Elevator: Down 1 floor, now at " + currentFloor);
+			} else {
+				currentFloor += 1;
+				System.out.println("Elevator: Up 1 floor, now at " + currentFloor);
+			}
+
+			reportMovement();
+		}
+
+		while (Thread.currentThread().getName().equals("FloorListener")) {
+			byte data[] = new byte[256];
+			DatagramPacket cbpePacket = new DatagramPacket(data, data.length);;
+			try {
+				floorSocketReceiver.receive(cbpePacket);
+				forwardButtonPress(cbpePacket.getData());
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+
+	public static void main(String[] args) throws SocketException {
+		for(int i=0; i<4; i++) {
+			Elevator elevator = new Elevator(i, 1);
+			Thread mainThread = new Thread(elevator, "main");
+			Thread floorListener = new Thread(elevator, "FloorListener");
+			mainThread.start();
+			floorListener.start();
+		}
 	}
 }

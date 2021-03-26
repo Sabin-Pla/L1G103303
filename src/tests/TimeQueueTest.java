@@ -1,39 +1,42 @@
 package tests;
 
-import common.*;
-
-import org.junit.Before;
-import org.junit.Test;
-
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 
+import actor_events.RequestElevatorEvent;
+import common.*;
+import org.junit.Before;
+import org.junit.Test;
+
 public class TimeQueueTest {
 
     private ArrayList<RequestElevatorEvent> events;
+    private SimulationClock clock;
 
     @Before
-    public void getRequests() {
+    public void getRequests() throws FileNotFoundException, InvalidDirectionException {
         URL resource = getClass().getResource("parserTest.txt");
         File f =  new File(resource.getFile());
         assert (f != null);
-        events = Parser.getRequestFromFile(f);
+        Parser p = new Parser(f);
+        p.parseEvents();
+        events = p.getEvents();
         assert (events != null);
-
-        TimeEvent firstEvent = events.get(0);
-        Time time = new Time(15, firstEvent.getEventTime() - 100000);
-        firstEvent.setTime(time);
+        clock = p.getClock();
+        assert (clock != null);
+        clock.start();
     }
 
     @Test
     public void add() {
         TimeQueue queue = new TimeQueue();
-
         assert (queue != null);
+        queue.setClock(clock);
 
         Collections.shuffle(events);
         for (int i=1; i < events.size(); i++) {
@@ -58,9 +61,8 @@ public class TimeQueueTest {
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(new Date());
         calendar.add(Calendar.YEAR, 1); // set the time to a time far past any event
-        long future = calendar.getTime().getTime();
-        Time time = new Time(1, future);
-        events.get(0).setTime(time);
+        SimulationClock clockStartFuture = new SimulationClock(calendar.toInstant(), 1);
+        queue.setClock(clockStartFuture);
 
         Collections.shuffle(events);
         for (int i=1; i < events.size(); i++) {
