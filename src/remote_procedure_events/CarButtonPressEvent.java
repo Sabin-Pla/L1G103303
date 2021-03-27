@@ -39,6 +39,7 @@ public class CarButtonPressEvent extends TimeEvent {
      * @return object in form of human readable string
      */
     public String toString() {
-        return new Date(this.getEventInstant().toEpochMilli()) + " From " + sourceFloor + " To " + destinationFloor;
+        return new Date(this.getEventInstant().toEpochMilli()) + " Elevator: " + elevatorNumber +
+                " From " + sourceFloor + " To " + destinationFloor;
     }
 }

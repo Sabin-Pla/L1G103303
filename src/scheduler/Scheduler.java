@@ -110,6 +110,7 @@ public class Scheduler implements Runnable {
 	 */
 	private void setNextStop(int elevatorNumber, int floor) {
 		LinkedList<Integer> stops = stopQueues[elevatorNumber];
+		/* try to insert the destination stop between the earliest 2 stops */
 		for (int i = 0; i < stops.size() - 1; i++) {
 			if (floor > stops.get(i) && floor < stops.get(i + 1) ||
 					floor < stops.get(i) && floor > stops.get(i + 1)) {
@@ -123,8 +124,15 @@ public class Scheduler implements Runnable {
 		if (stops.size() == 0) {
 			stops.add(floor);
 			lastStop = currentFloor;
+			if (path.size() != 0) {
+				// this if block is for when cancelling the current elevator movement and moving it to a new location.
+				// add the last stop back int he stop queue
+				lastStop = currentDestinations[elevatorNumber];
+				stops.add(lastStop);
+			}
 		} else {
 			lastStop = path.peekLast();
+			/* insert the destination stop somewhere between the current floor and the next stop */
 			if (floor > lastStop) {
 				if (currentFloor < floor) { // floor > currentFloor > 'lastStop'
 					stops.addLast(floor); // go back up to 'floor' after arriving at 'lastStop'
@@ -139,7 +147,10 @@ public class Scheduler implements Runnable {
 				stops.addLast(floor); // go back down to 'floor' after going up to next stop
 			}
 		}
-		/** make the appropriate changes to floorsToGoThroughQueues by extending
+		/**
+		 * If the method has not returned at this point, the destination floor is not along the elevator's path.
+		 *
+		 * make the appropriate changes to floorsToGoThroughQueues by extending
 		 *  the intersection floors in path to floor */
 		if (floor > lastStop) { // going to 'floor' from below
 			for (int i=lastStop + 1; i <= floor; i++) {
@@ -166,13 +177,13 @@ public class Scheduler implements Runnable {
 		elevatorFloors[elevatorNumber] = arrivalFloor;
 		int expectedArrivalFloor = floorsToGoThroughQueues[elevatorNumber].pollFirst();
 		System.out.println("Processing floor arrival for elevator " + elevatorNumber + " at floor " + arrivalFloor +
-				"\n remaining floor intersections: " + floorsToGoThroughQueues[elevatorNumber]);
+				"\n remaining floor intersections: " + floorsToGoThroughQueues[elevatorNumber] + "\n stops: " +
+				stopQueues[elevatorNumber]);
 		if (expectedArrivalFloor != arrivalFloor) {
 			throw new ElevatorPositionException("Unexpected elevator position, assumed sensor failure\n" +
 					fae.toString() + " " + floorsToGoThroughQueues[elevatorNumber],
 					ElevatorPositionException.Type.PATH_MISMATCH);
-		}
-		if (!doorsClosed) {
+		} else if (!doorsClosed) {
 			if (arrivalFloor != currentDestinations[elevatorNumber]) {
 				throw new ElevatorPositionException("Elevator stopped at wrong floor\n" +
 						fae.toString()  + " " + floorsToGoThroughQueues[elevatorNumber],
@@ -183,7 +194,7 @@ public class Scheduler implements Runnable {
 			currentDestinations[elevatorNumber] = stopQueues[elevatorNumber].pollFirst();
 			sendMotorEvent(elevatorNumber, currentDestinations[elevatorNumber]);;
 		} else if (arrivalFloor ==  currentDestinations[elevatorNumber]) {
-			throw new ElevatorPositionException("Elevator is not stopped at the floor its supposed to be\n" +
+			throw new ElevatorPositionException("Elevator doors are not open when they are supposed to be\n" +
 					fae.toString() + " " + floorsToGoThroughQueues[elevatorNumber],
 					ElevatorPositionException.Type.NOT_STOPPED);
 		}
