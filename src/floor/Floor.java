@@ -46,7 +46,6 @@ public class Floor {
 		this.floorLamps = new boolean[2];
 		this.carButtonEventQueue = new TimeQueue();
 		this.sendSocket = new DatagramSocket();
-		this.elevatorFloors = new int[NUM_ELEVATORS];
 		for (int i=0; i < NUM_ELEVATORS; i++) {
 			elevatorFloors[i] = 1;  // assume all elevators are at floor 1 to start
 		}
@@ -151,6 +150,11 @@ public class Floor {
 	}
 	
 	public static void main(String[] args) throws SocketException, FileNotFoundException, InvalidDirectionException {
+		elevatorFloors = new int[NUM_ELEVATORS];
+		for (int i=0; i < NUM_ELEVATORS; i++) {
+			elevatorFloors[i] = 1;
+ 		}
+
 		File requestFile = new File(REQUEST_FILE);
 		Parser p = new Parser(requestFile);
 		p.parseEvents();

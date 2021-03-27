@@ -1,6 +1,7 @@
 package elevator;
 
 import common.SimulationClock;
+import floor.Floor;
 import remote_procedure_events.CarButtonPressEvent;
 import remote_procedure_events.ElevatorMotorEvent;
 import remote_procedure_events.FloorArrivalEvent;
@@ -14,10 +15,10 @@ import java.time.Duration;
 
 
 /**
- * This class models the elevator
+ * This class contains the entry point for the elevator subsystem.
  *
  * @author Mmedara Josiah, Sabin Plaiasu, John Afolayan
- * @version Iteration 3
+ * @version Iteration 4
  *
  */
 public class Elevator extends Thread {
@@ -27,31 +28,27 @@ public class Elevator extends Thread {
 	private SimulationClock clock;
 	private int currentFloor;
 	private int destinationFloor;
-	private DatagramSocket sendSocket, floorSocketReceiver, schedulerSocketReceiver;
+	private DatagramSocket sendSocket;
+	private static  DatagramSocket floorSocketReceiver;
+	private static DatagramSocket schedulerSocketReceiver;
 	private boolean doorsClosed;
 	private int elevatorNumber;
+	private static Elevator[] elevators;
 
-	/**
-	 * Constructor
-	 */
 	public Elevator(int elevatorNumber, int currentFloor) throws SocketException {
 		this.elevatorNumber = elevatorNumber;
 		this.currentFloor = currentFloor;
 		this.destinationFloor = currentFloor;
 		this.doorsClosed = true;
-		this.schedulerSocketReceiver = new DatagramSocket(ElevatorMotorEvent.ELEVATOR_RECEIVE_PORT);
-		this.floorSocketReceiver = new DatagramSocket(CarButtonPressEvent.ELEVATOR_LISTEN_PORT);
 		this.sendSocket = new DatagramSocket();
 	}
 
-	/**
-	 * This method represents the floor which elevator is moving to.
-	 * @param destFloor Destination Floor
-	 */
-	public void move(int destFloor) {
-		this.destinationFloor = destFloor;
-		System.out.println("Elevator: new destination floor " + destFloor);
-		notifyAll();
+	public static void setSchedulerSocketReceiver(int port) throws SocketException {
+		schedulerSocketReceiver = new DatagramSocket(port);
+	}
+
+	public static void setFloorSocketReceiver(int port) throws SocketException {
+		floorSocketReceiver = new DatagramSocket(port);
 	}
 
 	private void forwardButtonPress(byte[] data) {
@@ -86,7 +83,7 @@ public class Elevator extends Thread {
 
 	@Override
 	public void run() {
-		while (Thread.currentThread().getName().equals("main")) {
+		while (Thread.currentThread().getName().equals("motor")) {
 			while (currentFloor == destinationFloor) {
 				doorsClosed = false;
 				try {
@@ -104,7 +101,6 @@ public class Elevator extends Thread {
 						e.printStackTrace();
 						return;
 					}
-
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -112,14 +108,12 @@ public class Elevator extends Thread {
 
 			doorsClosed = false;
 			System.out.println("Elevator: moving...");
-
 			try {
 				Duration d = Duration.ofMillis(MOVE_ONE_FLOOR_TIME).dividedBy(clock.getCompressionFactor());
 				sleep(d.toMillis());
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-
 			if (currentFloor > destinationFloor) {
 				currentFloor -= 1;
 				System.out.println("Elevator: Down 1 floor, now at " + currentFloor);
@@ -127,11 +121,10 @@ public class Elevator extends Thread {
 				currentFloor += 1;
 				System.out.println("Elevator: Up 1 floor, now at " + currentFloor);
 			}
-
 			reportMovement();
 		}
 
-		while (Thread.currentThread().getName().equals("FloorListener")) {
+		while (Thread.currentThread().getName().equals("button_handler")) {
 			byte data[] = new byte[256];
 			DatagramPacket cbpePacket = new DatagramPacket(data, data.length);;
 			try {
@@ -145,12 +138,13 @@ public class Elevator extends Thread {
 
 
 	public static void main(String[] args) throws SocketException {
-		for(int i=0; i<4; i++) {
-			Elevator elevator = new Elevator(i, 1);
-			Thread mainThread = new Thread(elevator, "main");
-			Thread floorListener = new Thread(elevator, "FloorListener");
-			mainThread.start();
-			floorListener.start();
-		}
+		elevators = new Elevator[Floor.NUM_ELEVATORS];
+		setSchedulerSocketReceiver(ElevatorMotorEvent.ELEVATOR_RECEIVE_PORT);
+		setFloorSocketReceiver(CarButtonPressEvent.ELEVATOR_LISTEN_PORT);
+		for(int i=0; i < Floor.NUM_ELEVATORS; i++) elevators[i] = new Elevator(i, 1);
+		Thread motorThread = new Thread(elevators[0], "motor");
+		Thread buttonThread = new Thread(elevators[0], "button_handler");
+		motorThread.start();
+		buttonThread.start();
 	}
 }

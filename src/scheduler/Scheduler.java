@@ -5,7 +5,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
-import java.net.UnknownHostException;
+import java.sql.Date;
 import java.util.Stack;
 
 import common.*;
@@ -28,8 +28,9 @@ public class Scheduler implements Runnable {
 
 	private static int elevatorListenerNumber = 0;
 
-	private Stack<Integer> intersectingFloors[];
-	private Stack<Integer> stopStack[];
+	private static int[] elevatorFloors;
+	private Stack<Integer> floorsToGoThroughStacks[];
+	private Stack<Integer> stopStacks[];
 	private static SimulationClock clock;
 
 	private static final int DATA_SIZE = 256;
@@ -37,11 +38,11 @@ public class Scheduler implements Runnable {
 
 	public Scheduler() {
 		timeQueue = new TimeQueue();
-		intersectingFloors = new Stack[Floor.NUM_ELEVATORS];
-		stopStack = new Stack[Floor.NUM_ELEVATORS];
+		floorsToGoThroughStacks = new Stack[Floor.NUM_ELEVATORS];
+		stopStacks = new Stack[Floor.NUM_ELEVATORS];
 		for (int i=0; i < Floor.NUM_ELEVATORS; i++) {
-			intersectingFloors[i] = new Stack<>();
-			stopStack[i] = new Stack<>();
+			floorsToGoThroughStacks[i] = new Stack<>();
+			stopStacks[i] = new Stack<>();
 		}
 
 		try {
@@ -61,7 +62,9 @@ public class Scheduler implements Runnable {
 	 * to decide which Elevator should receive the packet.
 	 *
 	 */
-	private void sendPacketToElevator(ElevatorMotorEvent eme) {
+	private void sendMotorEvent(int elevator, int destFloor) {
+		ElevatorMotorEvent eme = new ElevatorMotorEvent(clock.instant(),
+				elevator, destFloor);
 		try {
 			ByteArrayOutputStream dataStream = new ByteArrayOutputStream();
 			ObjectOutputStream out = new ObjectOutputStream(dataStream);
@@ -85,48 +88,33 @@ public class Scheduler implements Runnable {
 	private void printPacketInfo(DatagramPacket packet) {
 
 		boolean sending = false;
-		if (Thread.currentThread().getName().equals("WorkerThread")) {
+		if (Thread.currentThread().getName().equals("worker")) {
 				sending = true;
 		}
 		String symbol = sending ? "->" : "<-";
 		String title = sending ? "sending" : "receiving";
 
-		System.out.println(symbol + " Scheduler: " + title + " Packet");
+		System.out.println("\n" + symbol + " Scheduler: " + title + " Packet");
 		System.out.println(symbol + " Address: " + packet.getAddress());
 		System.out.println(symbol + " Port: " + packet.getPort());
 		System.out.print(symbol + " Data (byte): ");
 		for (byte b : packet.getData())
 			System.out.print(b);
 
-		System.out.print("\n" + symbol + " Data (String): " + new String(packet.getData()) + "\n\n");
-	}
-
-	/**
-	 * Check to see if there are any requests that must be scheduled.
-	 *
-	 * @return The next request to be scheduled, as a DatagramPacket.
-	 */
-	private synchronized Object checkWork() {
-		if (timeQueue.isEmpty()) {
-			try {
-				wait();
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
-		return timeQueue.poll();
+		System.out.print("\n" + symbol + " Data (String): " + new String(packet.getData()));
 	}
 
 	private void setNextStop(int elevatorNumber, int floor) {
-		Stack<Integer> stack = stopStack[elevatorNumber];
-		for (int i=0; i < stack.size() - 1; i++) {
-			if (floor > stack.get(i) && floor < stack.get(i + 1) ||
-					floor < stack.get(i) && floor > stack.get(i + 1)
+		Stack<Integer> stops = stopStacks[elevatorNumber];
+		for (int i=0; i < stops.size() - 1; i++) {
+			if (floor > stops.get(i) && floor < stops.get(i + 1) ||
+					floor < stops.get(i) && floor > stops.get(i + 1)
 			) {
-				stack.insertElementAt(i, floor);
+				stops.insertElementAt(i, floor);
+				return;
 			}
 		}
-		stack.push(floor);
+		stops.push(floor);
 	}
 
 	/**
@@ -137,62 +125,81 @@ public class Scheduler implements Runnable {
 	 *         information as to which Elevator the request will be added to, and if
 	 *         it should do at the front of the back of the workQueue.
 	 */
-	private void schedule(Object work) throws ElevatorPositionException {
+	private int schedule(TimeEvent work) throws ElevatorPositionException {
 		if (work instanceof FloorArrivalEvent) {
-			return;
-		} else if (work instanceof  FloorButtonPressEvent) {
-			FloorButtonPressEvent fbe = (FloorButtonPressEvent) work;
-			int sourceFloor = fbe.getFloor();
-			boolean goingUp = fbe.isGoingUp();
-
-			int elevatorTimes[] = new int[Floor.NUM_ELEVATORS];
-			// pick the elevator where the source floor is along the path the earliest
+				return 0;
+			} else if (work instanceof FloorButtonPressEvent) {
+				FloorButtonPressEvent fbe = (FloorButtonPressEvent) work;
+				int sourceFloor = fbe.getFloor();
+				boolean goingUp = fbe.isGoingUp();
+				Integer elevatorTimes[][] = new Integer[Floor.NUM_ELEVATORS][2];
+				// pick the elevator where the source floor is along the path the earliest
 			for (int i = 0; i < Floor.NUM_ELEVATORS; i++) {
-				for (int j=0; j < intersectingFloors[i].size(); j++) {
-					elevatorTimes[i] = j;
-					if (sourceFloor == intersectingFloors[i].get(j)) {
-						break;
+				elevatorTimes[i][0] = 0;
+				elevatorTimes[i][1] = 0;
+				boolean doneFirst = false; // done calculating time for first index of elevatorTimes[i]
+				boolean doneSecond = false;// done calculating time for second index of elevatorTimes[i]
+				Stack<Integer> stopStack = floorsToGoThroughStacks[i];
+				if (stopStack.size() > 0) {
+					int lastFloor = stopStack.get(stopStack.size() - 1);
+					for (int j = stopStack.size() - 1; j > -1; j--) {
+						if (!doneFirst && lastFloor > stopStack.get(j) && !goingUp ||
+								lastFloor < stopStack.get(j) && goingUp ) {
+							// floor intersection is in the desired direction.
+							lastFloor = stopStack.get(j);
+							if (sourceFloor != stopStack.get(j)) {
+								elevatorTimes[i][0] += 1;
+								doneFirst = true;
+							}
+						} else if (!doneSecond){
+							// floor intersection is not in the desired direction.
+							if (sourceFloor != stopStack.get(j)) {
+								elevatorTimes[i][1] += 1;
+								doneSecond = true;
+							}
+						}
+						if (doneFirst && doneSecond) break;
 					}
+					elevatorTimes[i][0] += Math.abs(sourceFloor - elevatorTimes[i][0]);
+					elevatorTimes[i][1] += Math.abs(sourceFloor - elevatorTimes[i][1]);
 				}
 			}
-
-			int fastestElevator = 0;
-			int min = elevatorTimes[0];
+			int fastestElevators[] = new int[2];
+			int minPressDirection = elevatorTimes[0][0];
+			int minNonPressDirection = elevatorTimes[0][0];
 			for (int i=0; i < elevatorTimes.length; i++) {
-				if (elevatorTimes[i] < min) {
-					min = elevatorTimes[i];
-					fastestElevator = i;
+				if (elevatorTimes[i][0] < minPressDirection) {
+					minPressDirection = elevatorTimes[i][0];
+					fastestElevators[0] = i;
+				}
+				if (elevatorTimes[i][1] < minNonPressDirection) {
+					minNonPressDirection = elevatorTimes[i][1];
+					fastestElevators[1] = i;
 				}
 			}
-
+			int fastestElevator = fastestElevators[0];
+			if (fastestElevators[1] + (Floor.NUM_FLOORS) / 2 < fastestElevators[0]) {
+				fastestElevator = fastestElevators[1];
+			}
 			setNextStop(fastestElevator, sourceFloor);
-		} else if (work instanceof  CarButtonPressEvent) {
+			return fastestElevator;
+		} else if (work instanceof CarButtonPressEvent) {
 			CarButtonPressEvent cbe = (CarButtonPressEvent) work;
 			int elevatorNumber = cbe.getElevatorNumber();
 			int destinationFloor = cbe.getDestinationFloor();
 			int currentFloor = cbe.getSourceFloor();
-
-			Stack<Integer> path = intersectingFloors[elevatorNumber];
+			Stack<Integer> path = floorsToGoThroughStacks[elevatorNumber];
 			if (currentFloor != path.peek()) {
 				throw new ElevatorPositionException("wrong elevator position");
 			}
-
-			for (Integer i : stopStack[elevatorNumber]) {
+			for (Integer i : stopStacks[elevatorNumber]) {
 				if (i == destinationFloor) {
-					return; // will already stop at this floor
+					return -1; // elevator is already scheduled to stop on requested floor
 				}
 			}
-
-			for (Integer i = 0; i < path.size(); i++) {
-				int floor = path.get(i);
-				if (floor == destinationFloor) {
-					setNextStop(elevatorNumber, floor);
-					return;
-				}
-			}
-
-			// if the method call has not ended by this point, the destination floor is no where along the elevator path
-
+			/** if the method call has not ended by this point, the destination floor is no where along the elevator
+			 * path */
+			setNextStop(elevatorNumber, destinationFloor);
 			if (path.get(0) < destinationFloor) {
 				for (Integer i = path.get(0) + 1; i <= destinationFloor; i++) {
 					path.push(i);
@@ -203,30 +210,24 @@ public class Scheduler implements Runnable {
 				}
 			}
 		}
+		return -1;
 	}
 
-
-	/**
-	 * Thread execution routine.
-	 */
 	@Override
 	public void run() {
-		if (Thread.currentThread().getName().equals("FloorListener")) {
+		if (Thread.currentThread().getName().equals("floor_listener")) {
 			// Main routine to receive request information from the FloorSubsystem.
 			while (true) {
 				byte[] request = new byte[DATA_SIZE];
 				DatagramPacket receivePacket = null;
 				try {
 					receivePacket = new DatagramPacket(request, request.length);
-					System.out.println("receiving..");
 					floorSocketReceiver.receive(receivePacket);
-					System.out.println("received");
 				} catch (IOException e) {
 					// Display an error if the packet cannot be received
 					System.out.println("Error: Scheduler cannot receive packet.");
 					System.exit(1);
 				}
-
 				printPacketInfo(receivePacket);
 				try {
 					setRequest(receivePacket, 0);
@@ -234,98 +235,126 @@ public class Scheduler implements Runnable {
 					e.printStackTrace();
 				}
 			}
-		} else if (Thread.currentThread().getName().matches("Elevator")) {
-			if (elevatorListenerNumber == 0 ) {
-				Thread elevatorListener2 = new Thread(this, "ElevatorListener2");
-				elevatorListenerNumber++;
-				elevatorListener2.start();
-			} else {
-				if (Thread.currentThread().getName().equals("ElevatorListener2")) {
-					listenForElevator(true);
-				}
-			}
-			listenForElevator(false);
-		} else {
+		} else if (Thread.currentThread().getName().equals("elevator_status_listener")) {
 			while (true) {
-				Object work = checkWork(); // blocks until rpc places something in queue
-				try {
-					schedule(work);
-				} catch (ElevatorPositionException e) {
-					e.printStackTrace();
-					System.exit(1);
-				}
+				listenForElevator(true);
+			}
+		} else if (Thread.currentThread().getName().equals("elevator_button_listener")) {
+			while (true) {
+				listenForElevator(false);
+			}
+		} else if (Thread.currentThread().getName().equals("worker")) {
+			while (true) {
+				checkWork();
 			}
 		}
 	}
 
-
-	private void listenForElevator(boolean carButtonListener) {
-		while (true) {
-			byte[] request = new byte[DATA_SIZE];
-			DatagramPacket receivePacket = null;
+	private void checkWork() {
+		synchronized (this) {
 			try {
-				// Main routine to receive confirmation from
-				receivePacket = new DatagramPacket(request, request.length);
-				if (carButtonListener) {
-					carButtonSocket.receive(receivePacket);
-				} else {
-					elevatorResponseSocket.receive(receivePacket);
-
-					ByteArrayInputStream bainStream = new ByteArrayInputStream(receivePacket.getData());
-					FloorArrivalEvent arrivalEvent = null;
-
-					try {
-						ObjectInputStream oinStream = new ObjectInputStream(bainStream);
-						arrivalEvent = (FloorArrivalEvent) oinStream.readObject();
-					} catch (IOException e) {
-						e.printStackTrace();
-					} catch (ClassNotFoundException e) {
-						e.printStackTrace();
-					}
-
-					ElevatorMotorEvent eme = new ElevatorMotorEvent(clock.instant(),
-							arrivalEvent.getElevatorNumber(), stopStack[arrivalEvent.getElevatorNumber()].pop());
-					sendPacketToElevator(eme);
+				while (timeQueue.isEmpty()) {
+					wait();
 				}
-			} catch (IOException e) {
-				// Display an error if the packet cannot be received
-				System.out.println("Error: Scheduler cannot receive packet.");
+				TimeEvent work = timeQueue.nextEvent();
+				int selectedElevator = schedule(work);
+				if (selectedElevator >= 0) {
+					sendMotorEvent(selectedElevator,  stopStacks[selectedElevator].pop());
+					/** Block until the elevator has reached the designated floor */
+					while (elevatorFloors[selectedElevator] != stopStacks[selectedElevator].peek()) {
+						// TODO: check to make sure elevator is going in expected direction, throw error if its not
+						wait();
+						if (timeQueue.isEmpty()) return;
+					}
+				}// no work needs to be done
+			} catch (ElevatorPositionException | InterruptedException e) {
+				e.printStackTrace();
 				System.exit(1);
 			}
-
-			printPacketInfo(receivePacket);
-			try {
-				if (carButtonListener) {
-					setRequest(receivePacket, 1);
-				} else {
-					setRequest(receivePacket, 2);
-				}
-			} catch (InterruptedException | TimeException e) {
-				e.printStackTrace();
-			}
 		}
 	}
 
+	private void listenForElevator(boolean carButtonListener) {
+		byte[] request = new byte[DATA_SIZE];
+		DatagramPacket receivePacket = null;
+		try {
+			// Main routine to receive confirmation from
+			receivePacket = new DatagramPacket(request, request.length);
+			if (carButtonListener) {
+				carButtonSocket.receive(receivePacket);
+			} else {
+				elevatorResponseSocket.receive(receivePacket);
+				ByteArrayInputStream bainStream = new ByteArrayInputStream(receivePacket.getData());
+				FloorArrivalEvent arrivalEvent = null;
+				int elevatorNumber;
+				try {
+					ObjectInputStream oinStream = new ObjectInputStream(bainStream);
+					arrivalEvent = (FloorArrivalEvent) oinStream.readObject();
+				} catch (IOException e) {
+					e.printStackTrace();
+				} catch (ClassNotFoundException e) {
+					e.printStackTrace();
+				}
+				elevatorNumber = arrivalEvent.getElevatorNumber();
+				synchronized (this) {
+					if (stopStacks[elevatorNumber].isEmpty()) return; // elevator reached destination floor
+					elevatorFloors[elevatorNumber] = arrivalEvent.getArrivalFloor();
+					sendMotorEvent(elevatorNumber, stopStacks[elevatorNumber].pop());
+					floorsToGoThroughStacks[elevatorNumber].pop();
+					// TODO: throw error if the value in the floor intersection stack and stop stack are not the same.
+					notifyAll();
+				}
+			}
+		} catch (IOException e) {
+			// Display an error if the packet cannot be received
+			System.out.println("Error: Scheduler cannot receive packet.");
+			System.exit(1);
+		}
 
-	/**
-	 * Stores an incoming request in the scheduler's queue
-	 *
-	 * @throws InterruptedException
-	 */
+		printPacketInfo(receivePacket);
+		try {
+			if (carButtonListener) {
+				setRequest(receivePacket, 1);
+			} else {
+				setRequest(receivePacket, 2);
+			}
+		} catch (InterruptedException | TimeException e) {
+			e.printStackTrace();
+		}
+	}
+
 	public synchronized void setRequest(DatagramPacket packet, int type)
 			throws InterruptedException, TimeException {
-
+		System.out.println("\nSet Request: ");
 		ByteArrayInputStream bainStream = new ByteArrayInputStream(packet.getData());
-		TimeEvent event = null;
+		TimeEvent event;
 		try {
 			ObjectInputStream oinStream = new ObjectInputStream(bainStream);
+			System.out.print("Received event from ");
 			if (type == 0) {
+				System.out.println("floor : FloorButtonPressEvent");
 				event = (FloorButtonPressEvent) oinStream.readObject();
-			} else if (type == 1) {
-				event = (FloorArrivalEvent) oinStream.readObject();
-			} else if (type == 2) {
-				event = (CarButtonPressEvent) oinStream.readObject();
+				System.out.println("Going up : " + ((FloorButtonPressEvent) event).isGoingUp());
+				System.out.println("Floor    : " + ((FloorButtonPressEvent) event).getFloor());
+			} else {
+				System.out.print("elevator :");
+				if (type == 1) {
+					System.out.println(" FloorArrivalEvent");
+					event = (FloorArrivalEvent) oinStream.readObject();
+					System.out.println("Elevator #   : " + ((FloorArrivalEvent) event).getElevatorNumber());
+					System.out.println("Arrived at   : " + ((FloorArrivalEvent) event).getArrivalFloor());
+					System.out.println("Doors closed : " + ((FloorArrivalEvent) event).getDoorsClosed());
+				} else if (type == 2){
+					System.out.println(" CarButtonPressEvent");
+					event = (CarButtonPressEvent) oinStream.readObject();
+					System.out.println("Destination Floor : " + ((CarButtonPressEvent) event).getDestinationFloor());
+					System.out.println("Elevator #        : " + ((CarButtonPressEvent) event).getElevatorNumber());
+				} else {
+					throw new IllegalArgumentException("unrecognized event type : " + type);
+				}
 			}
+			System.out.println("Time: " + Date.from(event.getEventInstant()));
+			// TODO: Throw error if event is too far in past
 		}
 		catch (IOException | ClassNotFoundException e) {
 			e.printStackTrace();
@@ -347,13 +376,15 @@ public class Scheduler implements Runnable {
 		Parser p = new Parser(requestFile);
 		clock = p.getClock();
 		p.close();
+		elevatorFloors = new int[Floor.NUM_ELEVATORS];
 		Scheduler scheduler = new Scheduler();
-		System.out.println("---- SCHEDULER SUB SYSTEM ----- \n");
-		Thread elevatorListener = new Thread(scheduler, "ElevatorListener");
-		Thread floorListener = new Thread(scheduler, "FloorListener");
-		Thread workerThread = new Thread(scheduler, "Worker");
+		Thread elevatorStatusListener = new Thread(scheduler, "elevator_status_listener");
+		Thread elevatorButtonListener = new Thread(scheduler, "elevator_button_listener");
+		Thread floorListener = new Thread(scheduler, "floor_listener");
+		Thread worker = new Thread(scheduler, "worker");
 		floorListener.start();
-		elevatorListener.start();
-		workerThread.start();
+		elevatorStatusListener.start();
+		elevatorButtonListener.start();
+		worker.start();
 	}
 }
