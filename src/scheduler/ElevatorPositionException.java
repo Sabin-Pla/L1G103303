@@ -6,13 +6,16 @@ package scheduler;
  */
 public class ElevatorPositionException extends Exception {
 
+    public enum Type {NOT_STOPPED, PATH_MISMATCH, WRONG_ARRIVAL_FLOOR};
+    Type type;
     /**
      * Create new elevator position exception
      *
      * @param message message to send
      */
-    public ElevatorPositionException(String message) {
+    public ElevatorPositionException(String message, Type type) {
         super(message);
+        this.type = type;
     }
 }
 

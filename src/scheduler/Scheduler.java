@@ -5,11 +5,9 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
-import java.sql.Date;
 import java.util.LinkedList;
 
 import common.*;
-
 import floor.Floor;
 import remote_procedure_events.CarButtonPressEvent;
 import remote_procedure_events.FloorArrivalEvent;
@@ -24,23 +22,32 @@ import remote_procedure_events.FloorButtonPressEvent;
  * @version Iteration 4
  */
 public class Scheduler implements Runnable {
-	private TimeQueue timeQueue;
 
-	private static int[] elevatorFloors;
+	private int[] elevatorFloors;
+	private TimeQueue timeQueue;
 	private LinkedList<Integer> floorsToGoThroughQueues[];
 	private LinkedList<Integer> stopQueues[];
-	private static SimulationClock clock;
-
+	private SimulationClock clock;
+	private int currentDestinations[];
 	private static final int DATA_SIZE = 256;
 	private DatagramSocket floorSocketReceiver, carButtonSocket, elevatorResponseSocket, sendSocket;
 
-	public Scheduler() {
+	/**
+	 *
+	 * @param elevatorFloors the current floor of each elevator
+	 */
+	public Scheduler(int[] elevatorFloors, SimulationClock clock) {
 		timeQueue = new TimeQueue();
+		this.clock = clock;
 		floorsToGoThroughQueues = new LinkedList[Floor.NUM_ELEVATORS];
 		stopQueues = new LinkedList[Floor.NUM_ELEVATORS];
+		this.elevatorFloors = new int[Floor.NUM_ELEVATORS];
+		currentDestinations = new int[Floor.NUM_ELEVATORS];
 		for (int i=0; i < Floor.NUM_ELEVATORS; i++) {
 			floorsToGoThroughQueues[i] = new LinkedList<>();
 			stopQueues[i] = new LinkedList<>();
+			this.elevatorFloors[i] = elevatorFloors[i];
+			currentDestinations[i] = 1;
 		}
 		try {
 			floorSocketReceiver = new DatagramSocket(FloorButtonPressEvent.SCHEDULER_LISTEN_PORT);
@@ -95,128 +102,212 @@ public class Scheduler implements Runnable {
 		System.out.println(symbol + " Port: " + packet.getPort());
 	}
 
+	/**
+	 * modifies attributes stopQueues and floorsToGoThroughQueues to set next stop for an elevator
+	 *
+	 * @param elevatorNumber the elevator to se the next stop of
+	 * @param floor what flor to stop at
+	 */
 	private void setNextStop(int elevatorNumber, int floor) {
 		LinkedList<Integer> stops = stopQueues[elevatorNumber];
-		for (int i=0; i < stops.size() - 1; i++) {
+		for (int i = 0; i < stops.size() - 1; i++) {
 			if (floor > stops.get(i) && floor < stops.get(i + 1) ||
 					floor < stops.get(i) && floor > stops.get(i + 1)) {
 				stops.add(i, floor);
 				return;
 			}
 		}
-		stops.add(floor);
 		LinkedList<Integer> path = floorsToGoThroughQueues[elevatorNumber];
-		if (path.size() < 2) {
-			final int currentFloor = elevatorFloors[elevatorNumber];
-			for (int i=currentFloor; i != floor;) {
-				path.addLast(currentFloor);
-				i++;
-				if (floor < currentFloor) i -= 2;
-			}
-			path.addLast(floor);
+		int lastStop;
+		int currentFloor = elevatorFloors[elevatorNumber];
+		if (stops.size() == 0) {
+			stops.add(floor);
+			lastStop = currentFloor;
 		} else {
-			if (path.getLast() < floor) {
-				for (int i = path.getLast(); i <= floor; i++) {
-					path.addLast(i);
+			lastStop = path.peekLast();
+			if (floor > lastStop) {
+				if (currentFloor < floor) { // floor > currentFloor > 'lastStop'
+					stops.addLast(floor); // go back up to 'floor' after arriving at 'lastStop'
+				} else { // floor > nextStop > currentFloor
+					stops.addLast(floor); // go to 'floor' through 'lastStop'
+					return; // no changes made to intersecting floors, floor is already in that stack
 				}
-			} else {
-				for (int i = path.getLast(); i >= floor; i--) {
-					path.addLast(i);
-				}
+			} else if (currentFloor < floor) { // 'lastStop' > floor > currentFloor
+				stops.addFirst(floor); // go to 'lastStop' through floor from below
+				return; // no changes made to intersecting floors, floor is already in that stack
+			} else { // nextStop > currentFloor > floor
+				stops.addLast(floor); // go back down to 'floor' after going up to next stop
+			}
+		}
+		/** make the appropriate changes to floorsToGoThroughQueues by extending
+		 *  the intersection floors in path to floor */
+		if (floor > lastStop) { // going to 'floor' from below
+			for (int i=lastStop + 1; i <= floor; i++) {
+				path.addLast(i);
+			}
+		} else { // going to 'floor' from above
+			for (int i=lastStop - 1; i >= floor; i--) {
+				path.addLast(i);
 			}
 		}
 	}
 
 	/**
-	 * Schedule the request by determining the best elevator to send the request to.
+	 * Handles events sent by the elevator when it arrives at a floor by sending that elevator
+	 * Sends
+	 *
+	 * @param fae event to handle
+	 * @throws ElevatorPositionException if the elevator is in an unexpected position
+	 */
+	private void handleFloorArrival(FloorArrivalEvent fae) throws ElevatorPositionException {
+		int elevatorNumber = fae.getElevatorNumber();
+		int arrivalFloor = fae.getArrivalFloor();
+		boolean doorsClosed = fae.getDoorsClosed();
+		elevatorFloors[elevatorNumber] = arrivalFloor;
+		int expectedArrivalFloor = floorsToGoThroughQueues[elevatorNumber].pollFirst();
+		System.out.println("Processing floor arrival for elevator " + elevatorNumber + " at floor " + arrivalFloor +
+				"\n remaining floor intersections: " + floorsToGoThroughQueues[elevatorNumber]);
+		if (expectedArrivalFloor != arrivalFloor) {
+			throw new ElevatorPositionException("Unexpected elevator position, assumed sensor failure\n" +
+					fae.toString() + " " + floorsToGoThroughQueues[elevatorNumber],
+					ElevatorPositionException.Type.PATH_MISMATCH);
+		}
+		if (!doorsClosed) {
+			if (arrivalFloor != currentDestinations[elevatorNumber]) {
+				throw new ElevatorPositionException("Elevator stopped at wrong floor\n" +
+						fae.toString()  + " " + floorsToGoThroughQueues[elevatorNumber],
+						ElevatorPositionException.Type.WRONG_ARRIVAL_FLOOR);
+			}
+			stopQueues[elevatorNumber].pollFirst(); // elevator has stopped on the next floor in the stop queue
+			if (stopQueues[elevatorNumber].isEmpty()) return; // elevator reached destination floor
+			currentDestinations[elevatorNumber] = stopQueues[elevatorNumber].pollFirst();
+			sendMotorEvent(elevatorNumber, currentDestinations[elevatorNumber]);;
+		} else if (arrivalFloor ==  currentDestinations[elevatorNumber]) {
+			throw new ElevatorPositionException("Elevator is not stopped at the floor its supposed to be\n" +
+					fae.toString() + " " + floorsToGoThroughQueues[elevatorNumber],
+					ElevatorPositionException.Type.NOT_STOPPED);
+		}
+	}
+
+	/**
+	 * Handles floor button presses placed in work queue
+	 *
+	 * @param fbpe event to handle
+	 * @return the number of the elevator to send to the destination floor if an elevator must be started in order to
+	 * 	fulfill the request
+	 * @throws ElevatorPositionException if the elevator is in an unexpected position
+	 */
+	private int handleFloorButtonPress(FloorButtonPressEvent fbpe) {
+		int sourceFloor = fbpe.getFloor();
+		boolean goingUp = fbpe.isGoingUp();
+		Integer elevatorTimes[][] = new Integer[Floor.NUM_ELEVATORS][2];
+		// pick the elevator where the source floor is along the path the earliest
+		boolean stopped[] = new boolean[Floor.NUM_ELEVATORS];
+		for (int i = 0; i < Floor.NUM_ELEVATORS; i++) {
+			LinkedList<Integer> throughQueue = floorsToGoThroughQueues[i];
+			elevatorTimes[i][0] = 0;
+			elevatorTimes[i][1] = 0;
+			boolean doneFirst = false;  // done calculating time for first index of elevatorTimes[i]
+			boolean doneSecond = false; // done calculating time for second index of elevatorTimes[i]
+			if (throughQueue.size() > 0) {
+				int lastFloor = throughQueue.get(throughQueue.size() - 1);
+				for (int j = throughQueue.size() - 1; j > -1; j--) {
+					if (!doneFirst && lastFloor > throughQueue.get(j) && !goingUp ||
+							lastFloor < throughQueue.get(j) && goingUp ) {
+						// floor intersection is in the desired direction.
+						lastFloor = throughQueue.get(j);
+						if (sourceFloor != throughQueue.get(j)) {
+							elevatorTimes[i][0] += 1;
+							doneFirst = true;
+						}
+					} else if (!doneSecond){
+						// floor intersection is not in the desired direction.
+						if (sourceFloor != throughQueue.get(j)) {
+							elevatorTimes[i][1] += 1;
+							doneSecond = true;
+						}
+					}
+					if (doneFirst && doneSecond) break;
+				}
+				elevatorTimes[i][0] += Math.abs(sourceFloor - elevatorFloors[i]);
+				elevatorTimes[i][1] += Math.abs(sourceFloor - elevatorFloors[i]);
+			} // if throughQueue.size() > 0
+			stopped[i] = true; // elevator is stopped
+		}
+		int fastestElevators[] = new int[2];
+		int minPressDirection = elevatorTimes[0][0];
+		int minNonPressDirection = elevatorTimes[0][0];
+		for (int i=0; i < elevatorTimes.length; i++) {
+			if (elevatorTimes[i][0] < minPressDirection) {
+				minPressDirection = elevatorTimes[i][0];
+				fastestElevators[0] = i;
+			}
+			if (elevatorTimes[i][1] < minNonPressDirection) {
+				minNonPressDirection = elevatorTimes[i][1];
+				fastestElevators[1] = i;
+			}
+		}
+		int fastestElevator = fastestElevators[0];
+		if (fastestElevators[1] + (Floor.NUM_FLOORS) / 2 < fastestElevators[0]) {
+			fastestElevator = fastestElevators[1];
+		}
+		setNextStop(fastestElevator, sourceFloor);
+		if (stopped[fastestElevator]) return fastestElevator;
+		return -1; // return an elevator number if its motor must be started
+	}
+
+	/**
+	 * Handles car button presses placed in work queue
+	 *
+	 * @param cbpe event to handle
+	 * @return the number of the elevator to send to the destination floor if an elevator must be started in order to
+	 * 	fulfill the request
+	 * @throws ElevatorPositionException if the elevator is in an unexpected position
+	 */
+	private int handleCarButtonPress(CarButtonPressEvent cbpe) throws ElevatorPositionException {
+		int elevatorNumber = cbpe.getElevatorNumber();
+		int destinationFloor = cbpe.getDestinationFloor();
+		int currentFloor = cbpe.getSourceFloor();
+		LinkedList<Integer> path = floorsToGoThroughQueues[elevatorNumber];
+		for (Integer i : stopQueues[elevatorNumber]) {
+			if (i == destinationFloor) {
+				return -1; // elevator is already scheduled to stop on requested floor
+			}
+		}
+		/** if the method call has not ended by this point, the destination floor is no where along the elevator
+		 * path */
+		setNextStop(elevatorNumber, destinationFloor);
+		return elevatorNumber;
+	}
+
+	/**
+	 * Schedule the request by determining the best elevator to send the request to and modifying the
+	 * floorsToGoThroughQueues and stopQueues
 	 *
 	 * @param work The current request that is being scheduled.
-	 * @return A DatagramPacket that contains the request, along with the
-	 *         information as to which Elevator the request will be added to, and if
-	 *         it should do at the front of the back of the workQueue.
+	 * @return the number of the elevator that should fulfill the request if it's to respond to a floor arrival event
+	 * and the elevator is currently stopped. If the elevator is not stopped, this method should return a negative value
+	 *
 	 */
 	private int schedule(TimeEvent work) throws ElevatorPositionException {
+		System.out.println("\nscheduling...");
 		if (work instanceof FloorArrivalEvent) {
-				return 0;
+				FloorArrivalEvent fae = (FloorArrivalEvent) work;
+				handleFloorArrival(fae);
 			} else if (work instanceof FloorButtonPressEvent) {
-				FloorButtonPressEvent fbe = (FloorButtonPressEvent) work;
-				int sourceFloor = fbe.getFloor();
-				boolean goingUp = fbe.isGoingUp();
-				Integer elevatorTimes[][] = new Integer[Floor.NUM_ELEVATORS][2];
-				// pick the elevator where the source floor is along the path the earliest
-				for (int i = 0; i < Floor.NUM_ELEVATORS; i++) {
-				elevatorTimes[i][0] = 0;
-				elevatorTimes[i][1] = 0;
-				boolean doneFirst = false;  // done calculating time for first index of elevatorTimes[i]
-				boolean doneSecond = false; // done calculating time for second index of elevatorTimes[i]
-				LinkedList<Integer> stopQueue = floorsToGoThroughQueues[i];
-				if (stopQueue.size() > 0) {
-					int lastFloor = stopQueue.get(stopQueue.size() - 1);
-					for (int j = stopQueue.size() - 1; j > -1; j--) {
-						if (!doneFirst && lastFloor > stopQueue.get(j) && !goingUp ||
-								lastFloor < stopQueue.get(j) && goingUp ) {
-							// floor intersection is in the desired direction.
-							lastFloor = stopQueue.get(j);
-							if (sourceFloor != stopQueue.get(j)) {
-								elevatorTimes[i][0] += 1;
-								doneFirst = true;
-							}
-						} else if (!doneSecond){
-							// floor intersection is not in the desired direction.
-							if (sourceFloor != stopQueue.get(j)) {
-								elevatorTimes[i][1] += 1;
-								doneSecond = true;
-							}
-						}
-						if (doneFirst && doneSecond) break;
-					}
-					elevatorTimes[i][0] += Math.abs(sourceFloor - elevatorTimes[i][0]);
-					elevatorTimes[i][1] += Math.abs(sourceFloor - elevatorTimes[i][1]);
-					}
-				}
-				int fastestElevators[] = new int[2];
-				int minPressDirection = elevatorTimes[0][0];
-				int minNonPressDirection = elevatorTimes[0][0];
-				for (int i=0; i < elevatorTimes.length; i++) {
-					if (elevatorTimes[i][0] < minPressDirection) {
-						minPressDirection = elevatorTimes[i][0];
-						fastestElevators[0] = i;
-					}
-					if (elevatorTimes[i][1] < minNonPressDirection) {
-						minNonPressDirection = elevatorTimes[i][1];
-						fastestElevators[1] = i;
-					}
-				}
-				int fastestElevator = fastestElevators[0];
-				if (fastestElevators[1] + (Floor.NUM_FLOORS) / 2 < fastestElevators[0]) {
-					fastestElevator = fastestElevators[1];
-				}
-				setNextStop(fastestElevator, sourceFloor);
-				return -1; // request must not be serviced immediately
+				FloorButtonPressEvent fbpe = (FloorButtonPressEvent) work;
+				return handleFloorButtonPress(fbpe);
 			} else if (work instanceof CarButtonPressEvent) {
-				CarButtonPressEvent cbe = (CarButtonPressEvent) work;
-				int elevatorNumber = cbe.getElevatorNumber();
-				int destinationFloor = cbe.getDestinationFloor();
-				int currentFloor = cbe.getSourceFloor();
-				LinkedList<Integer> path = floorsToGoThroughQueues[elevatorNumber];
-				if (currentFloor != path.getFirst()) {
-					for (int i : path) {
-						System.out.print(i + " ");
-					}
-					throw new ElevatorPositionException("wrong elevator position");
-				}
-				for (Integer i : stopQueues[elevatorNumber]) {
-					if (i == destinationFloor) {
-						return -1; // elevator is already scheduled to stop on requested floor
-					}
-				}
-				/** if the method call has not ended by this point, the destination floor is no where along the elevator
-				 * path */
-				setNextStop(elevatorNumber, destinationFloor);
+				CarButtonPressEvent cbpe = (CarButtonPressEvent) work;
+				return handleCarButtonPress(cbpe);
 			}
 		return -1;
 	}
 
+	/**
+	 * Perform the main loop of scheduler operations
+	 *
+	 */
 	@Override
 	public void run() {
 		if (Thread.currentThread().getName().equals("floor_listener")) {
@@ -235,7 +326,7 @@ public class Scheduler implements Runnable {
 				printPacketInfo(receivePacket);
 				try {
 					setRequest(receivePacket, 0);
-				} catch (InterruptedException | TimeException e) {
+				} catch (InterruptedException  e) {
 					e.printStackTrace();
 				}
 			}
@@ -254,6 +345,11 @@ public class Scheduler implements Runnable {
 		}
 	}
 
+	/**
+	 * Waits until there is a request to schedule, then schedules it. Will also start the elevator motor if its
+	 * currently stopped
+	 *
+	 */
 	private void checkWork() {
 		synchronized (this) {
 			try {
@@ -263,8 +359,10 @@ public class Scheduler implements Runnable {
 				TimeEvent work = timeQueue.nextEvent();
 				int selectedElevator = schedule(work);
 				if (selectedElevator >= 0) {
-					sendMotorEvent(selectedElevator, stopQueues[selectedElevator].pollFirst());
+					currentDestinations[selectedElevator] = stopQueues[selectedElevator].pollFirst();
+					sendMotorEvent(selectedElevator, currentDestinations[selectedElevator]);
 				} // no work needs to be done
+				notifyAll();
 			} catch (ElevatorPositionException | InterruptedException e) {
 				e.printStackTrace();
 				System.exit(1);
@@ -272,6 +370,11 @@ public class Scheduler implements Runnable {
 		}
 	}
 
+	/**
+	 * Listens for events sent by the elevator subsystem
+	 *
+	 * @param carButtonListener True if listening for car button presses. False if listening for floor button presses.
+	 */
 	private void listenForElevator(boolean carButtonListener) {
 		byte[] request = new byte[DATA_SIZE];
 		DatagramPacket receivePacket = null;
@@ -282,33 +385,11 @@ public class Scheduler implements Runnable {
 				carButtonSocket.receive(receivePacket);
 			} else {
 				elevatorResponseSocket.receive(receivePacket);
-				ByteArrayInputStream bainStream = new ByteArrayInputStream(receivePacket.getData());
-				FloorArrivalEvent arrivalEvent = null;
-				int elevatorNumber;
-				try {
-					ObjectInputStream oinStream = new ObjectInputStream(bainStream);
-					arrivalEvent = (FloorArrivalEvent) oinStream.readObject();
-				} catch (IOException e) {
-					e.printStackTrace();
-				} catch (ClassNotFoundException e) {
-					e.printStackTrace();
-				}
-				elevatorNumber = arrivalEvent.getElevatorNumber();
-				synchronized (this) {
-					// TODO: throw error if the value in the floor intersection stack and stop stack are not the same.
-					floorsToGoThroughQueues[elevatorNumber].poll();
-					if (stopQueues[elevatorNumber].isEmpty()) return; // elevator reached destination floor
-					elevatorFloors[elevatorNumber] = arrivalEvent.getArrivalFloor();
-					sendMotorEvent(elevatorNumber, stopQueues[elevatorNumber].pollFirst());
-					notifyAll();
-				}
 			}
 		} catch (IOException e) {
-			// Display an error if the packet cannot be received
 			System.out.println("Error: Scheduler cannot receive packet.");
 			System.exit(1);
 		}
-
 		printPacketInfo(receivePacket);
 		try {
 			if (carButtonListener) {
@@ -316,13 +397,22 @@ public class Scheduler implements Runnable {
 			} else {
 				setRequest(receivePacket, 1);
 			}
-		} catch (InterruptedException | TimeException e) {
+		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 	}
 
+	/**
+	 * Serializes the received event packet and adds it to the work queue.
+	 *
+	 * @param packet the packet as sent by the floor or elevator subystems
+	 * @param type the remote_procedure_event type
+	 *             0: FloorButtonPressEvent, 1: FloorArrivalEvent, 2: CarButtonPressEvent
+	 *             // TODO: consider replacing type with an enum
+	 * @throws InterruptedException
+	 */
 	public synchronized void setRequest(DatagramPacket packet, int type)
-			throws InterruptedException, TimeException {
+			throws InterruptedException {
 		ByteArrayInputStream bainStream = new ByteArrayInputStream(packet.getData());
 		TimeEvent event;
 		try {
@@ -352,8 +442,13 @@ public class Scheduler implements Runnable {
 			e.printStackTrace();
 			return;
 		}
-		timeQueue.addNoValidate(event);
-		notifyAll();
+		synchronized (this) {
+			while (!timeQueue.isEmpty()) {
+				wait();
+			}
+			timeQueue.addNoValidate(event);
+			notifyAll();
+		}
 	}
 
 	/**
@@ -365,11 +460,11 @@ public class Scheduler implements Runnable {
 	public static void main(String[] args) throws FileNotFoundException {
 		File requestFile = new File(Floor.REQUEST_FILE);
 		Parser p = new Parser(requestFile);
-		clock = p.getClock();
+		SimulationClock clock = p.getClock();
 		p.close();
-		elevatorFloors = new int[Floor.NUM_ELEVATORS];
+		int elevatorFloors[] = new int[Floor.NUM_ELEVATORS];
 		for (int i=0; i < Floor.NUM_ELEVATORS; i++) elevatorFloors[i] = 1;
-		Scheduler scheduler = new Scheduler();
+		Scheduler scheduler = new Scheduler(elevatorFloors, clock);
 		Thread elevatorStatusListener = new Thread(scheduler, "elevator_status_listener");
 		Thread elevatorButtonListener = new Thread(scheduler, "elevator_button_listener");
 		Thread floorListener = new Thread(scheduler, "floor_listener");

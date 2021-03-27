@@ -2,6 +2,7 @@ package remote_procedure_events;
 
 import common.TimeEvent;
 import java.time.Instant;
+import java.util.Date;
 
 public class FloorArrivalEvent extends TimeEvent {
     public static final int SCHEDULER_LISTEN_PORT = 60 + 1024;
@@ -28,5 +29,15 @@ public class FloorArrivalEvent extends TimeEvent {
 
     public boolean getDoorsClosed() {
         return doorsClosed;
+    }
+
+    /**
+     * Converts object to human readable string
+     *
+     * @return object in form of human readable string
+     */
+    public String toString() {
+        return new Date(this.getEventInstant().toEpochMilli()) + " Elevator: " + elevatorNumber +
+                " Arrival Floor: " + arrivalFloor + " Doors Closed: " + doorsClosed;
     }
 }
