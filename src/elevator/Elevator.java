@@ -1,5 +1,6 @@
 package elevator;
 
+import common.Parser;
 import common.SimulationClock;
 import floor.Floor;
 import remote_procedure_events.CarButtonPressEvent;
@@ -25,7 +26,7 @@ public class Elevator extends Thread {
 
 	private final long MOVE_ONE_FLOOR_TIME = 10000;
 
-	private SimulationClock clock;
+	private static SimulationClock clock;
 	private int currentFloor;
 	private int destinationFloor;
 	private DatagramSocket sendSocket;
@@ -137,8 +138,11 @@ public class Elevator extends Thread {
 	}
 
 
-	public static void main(String[] args) throws SocketException {
+	public static void main(String[] args) throws SocketException, FileNotFoundException {
 		elevators = new Elevator[Floor.NUM_ELEVATORS];
+		File requestFile = new File(Floor.REQUEST_FILE);
+		Parser p = new Parser(requestFile);
+		clock = p.getClock();
 		setSchedulerSocketReceiver(ElevatorMotorEvent.ELEVATOR_RECEIVE_PORT);
 		setFloorSocketReceiver(CarButtonPressEvent.ELEVATOR_LISTEN_PORT);
 		for(int i=0; i < Floor.NUM_ELEVATORS; i++) elevators[i] = new Elevator(i, 1);

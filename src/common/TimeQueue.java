@@ -2,9 +2,9 @@ package common;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.concurrent.PriorityBlockingQueue;
+import java.util.PriorityQueue;
 
-public class TimeQueue extends PriorityBlockingQueue {
+public class TimeQueue extends PriorityQueue {
 
     private static SimulationClock clock;
 
@@ -45,8 +45,8 @@ public class TimeQueue extends PriorityBlockingQueue {
         return false;
     }
 
-    public boolean addNoValidate(Object o) {
-        return super.add(o);
+    public void addNoValidate(Object o) {
+        super.offer(o);
     }
 
     @Override

@@ -3,6 +3,7 @@ package remote_procedure_events;
 import common.TimeEvent;
 
 import java.time.Instant;
+import java.util.Date;
 
 public class ElevatorMotorEvent extends TimeEvent {
     public static final int ELEVATOR_RECEIVE_PORT = 70 + 1024;
@@ -22,5 +23,9 @@ public class ElevatorMotorEvent extends TimeEvent {
 
     public int getElevatorNumber() {
         return elevatorNumber;
+    }
+
+    public String toString() {
+        return Date.from(getEventInstant()) + " elevator: " + elevatorNumber + " to floor: " + destinationFloor;
     }
 }
