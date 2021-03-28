@@ -149,7 +149,7 @@ Simulation of a real time elevator system.
 
 ### Package actor_events 
 
-The actor_events package contains the events that will be triggered by the actor
+The actor_events package contains the events used for the simulation of events which are instantiated by real-world people and represent physical action, (ie pressing a button). 
 
 Classes:
 #### CarButtonEvent
@@ -192,7 +192,7 @@ The floor class sends requests to the schedulers and operates its floor lamp.
 An exception for if "going down" to a higher floor or "going up" to a lower floor
 
 ### Package remote_procedure_events 
-This package contains the events that transpire when the car button is pressed, when a floor button is spressed, and when the elevator arrives at a floor.
+This package contains the events used for inter-process communication such as when a car button is pressed, when a floor button is spressed, and when the elevator arrives at a floor.
 
 Classes:
 #### CarButtonPressEvent
@@ -219,7 +219,10 @@ The tests package contains unit tests to validate the behaviour of each class.
 One integrated test, IntegratedEventTest exists to demonstrate threads sequentially sending the events in a TimeQueue as they pass according to a simulated time scale of 60x speed.
 
 # Setup & Test Instructions
-
+### Note on Simulation File Format
+The simulation files are formatted as follows:
+<timestamp simulation start time> <time compression>
+### Setup and Test
 1. Extract the zip file to your desktop.
 2. In eclipse: File -> Import -> General -> Existing Projects into Workspace -> Select root directory -> Browse
 3. Select the extracted folder and then click 'Finish'
