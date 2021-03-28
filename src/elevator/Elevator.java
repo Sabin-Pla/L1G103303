@@ -118,13 +118,13 @@ public class Elevator extends Thread {
 						System.out.println("Redundant motor event to current floor");
 					}
 				}
-				doorsClosed = true;
-				try {
-					engageMotor();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
 				notifyAll();
+			}
+			doorsClosed = true;
+			try {
+				engageMotor();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
 		}
 		while (Thread.currentThread().getName().equals("button_handler")) {
@@ -150,8 +150,10 @@ public class Elevator extends Thread {
 				ObjectInputStream oinStream = new ObjectInputStream(bainStream);
 				ElevatorMotorEvent eme = (ElevatorMotorEvent) oinStream.readObject();
 				Elevator elevator = elevators[eme.getElevatorNumber()];
+				System.out.println("New destination floor: " + eme.getArrivalFloor());
 				synchronized (elevator) {
 					elevator.destinationFloor = eme.getArrivalFloor();
+					System.out.println("Destination updated");
 					elevator.notifyAll();
 				}
 			} catch (IOException e) {

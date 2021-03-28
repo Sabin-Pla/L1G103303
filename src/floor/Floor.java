@@ -37,6 +37,7 @@ public class Floor {
 	private static DatagramSocket receiveSocket;
 	private static int elevatorFloors[];
 	private static Floor[] floors;
+	private static int lastArrivalFloors[];
 
 	/**
 	 * Constructor initializes all variables
@@ -82,7 +83,11 @@ public class Floor {
 		int elevatorNumber = arrivalEvent.getElevatorNumber();
 		int arrivalFloor = arrivalEvent.getArrivalFloor();
 		elevatorFloors[elevatorNumber] = arrivalFloor;
-		floors[arrivalFloor].elevatorArrived(elevatorNumber);
+		if (!arrivalEvent.getDoorsClosed()) {
+			floors[arrivalFloor - 1].elevatorArrived(elevatorNumber);
+		}
+		floors[lastArrivalFloors[elevatorNumber]].elevatorDeparted(elevatorNumber);
+		lastArrivalFloors[elevatorNumber] = arrivalFloor;
 	}
 
 	/**
@@ -95,24 +100,27 @@ public class Floor {
 	 */
 	public void elevatorArrived(int elevatorNumber) throws ElevatorWaitTimeException {
 		floorLamps[elevatorNumber] = true;
-		System.out.println("Floor " + floorNumber + " turning Lamp on");
-
+		System.out.println("Floor " + floorNumber + ": turning lamp on");
 		while (!carButtonEventQueue.isEmpty()) {
+			System.out.println("Sending car button event to elevator...");
 			CarButtonEvent event = (CarButtonEvent) carButtonEventQueue.nextEvent();
 			Duration waitTime = Duration.between(event.getEventInstant(), clock.instant());
 			if (waitTime.toMillis() > MAXIMUM_WAIT_TIME) {
 				throw new ElevatorWaitTimeException("Passenger waited more than " + MAXIMUM_WAIT_TIME + " ms");
 			}
-			System.out.println("\nFloor: Sending car button press event to elevator. To " +
+			System.out.println("Sending car button press event to elevator. To " +
 					event.getDestinationFloor());
 			sendEvent(event, elevatorNumber);
 		}
+	}
 
+	public void elevatorDeparted(int elevatorNumber) {
 		if (floorLamps[elevatorNumber]) {
-		 System.out.println("Floor " + floorNumber + "turning lamp off");
-		 floorLamps[elevatorNumber] = false;
+			System.out.println("Floor " + floorNumber + ": turning lamp off");
+			floorLamps[elevatorNumber] = false;
 		}
 	}
+
 
 
 	private void sendEvent(TimeEvent event, int lastElevator) {
@@ -151,8 +159,10 @@ public class Floor {
 	
 	public static void main(String[] args) throws SocketException, FileNotFoundException, InvalidDirectionException {
 		elevatorFloors = new int[NUM_ELEVATORS];
+		lastArrivalFloors = new int[NUM_ELEVATORS];
 		for (int i=0; i < NUM_ELEVATORS; i++) {
 			elevatorFloors[i] = 1;
+			lastArrivalFloors[i] = 1;
  		}
 
 		File requestFile = new File(REQUEST_FILE);
@@ -196,9 +206,8 @@ public class Floor {
 					}
 					TimeEvent nextEvent = actorEventQueue.nextEvent();
 					System.out.println((RequestElevatorEvent) nextEvent);
-					floors[((RequestElevatorEvent) nextEvent).getFloor()].sendEvent(nextEvent, 0);
+					floors[((RequestElevatorEvent) nextEvent).getFloor() - 1].sendEvent(nextEvent, 0);
 				}
-				System.out.println("All events sent.");
 				waitOnElevator(null);
 			} catch (ElevatorWaitTimeException e) {
 				e.printStackTrace();
