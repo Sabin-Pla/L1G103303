@@ -125,10 +125,11 @@ public class Scheduler implements Runnable {
 			stops.add(floor);
 			lastStop = currentFloor;
 			if (path.size() != 0) {
-				// this if block is for when cancelling the current elevator movement and moving it to a new location.
-				// add the last stop back int he stop queue
+				/* Cancelling the current elevator movement request and moving it to a new location.
+				 add the last stop back int he stop queue */
 				lastStop = currentDestinations[elevatorNumber];
-				stops.add(lastStop);
+				stops.add(1, lastStop);
+				return;
 			}
 		} else {
 			lastStop = path.peekLast();
@@ -147,11 +148,10 @@ public class Scheduler implements Runnable {
 				stops.addLast(floor); // go back down to 'floor' after going up to next stop
 			}
 		}
-		/**
-		 * If the method has not returned at this point, the destination floor is not along the elevator's path.
-		 *
-		 * make the appropriate changes to floorsToGoThroughQueues by extending
-		 *  the intersection floors in path to floor */
+		/*
+		  If the method has not returned at this point, the destination floor is not along the elevator's path.
+		  make the appropriate changes to floorsToGoThroughQueues by extending
+		   the intersection floors in path to floor */
 		if (floor > lastStop) { // going to 'floor' from below
 			for (int i=lastStop + 1; i <= floor; i++) {
 				path.addLast(i);
@@ -189,7 +189,7 @@ public class Scheduler implements Runnable {
 						fae.toString()  + " " + floorsToGoThroughQueues[elevatorNumber],
 						ElevatorPositionException.Type.WRONG_ARRIVAL_FLOOR);
 			}
-			stopQueues[elevatorNumber].pollFirst(); // elevator has stopped on the next floor in the stop queue
+			//stopQueues[elevatorNumber].pollFirst(); // elevator has stopped on the next floor in the stop queue
 			if (stopQueues[elevatorNumber].isEmpty()) return; // elevator reached destination floor
 			currentDestinations[elevatorNumber] = stopQueues[elevatorNumber].pollFirst();
 			sendMotorEvent(elevatorNumber, currentDestinations[elevatorNumber]);;
@@ -278,7 +278,7 @@ public class Scheduler implements Runnable {
 	private int handleCarButtonPress(CarButtonPressEvent cbpe) throws ElevatorPositionException {
 		int elevatorNumber = cbpe.getElevatorNumber();
 		int destinationFloor = cbpe.getDestinationFloor();
-		int currentFloor = cbpe.getSourceFloor();
+		int currentFloor = cbpe.getSourceFloor(); // TODO: Perform validation on this
 		LinkedList<Integer> path = floorsToGoThroughQueues[elevatorNumber];
 		for (Integer i : stopQueues[elevatorNumber]) {
 			if (i == destinationFloor) {
