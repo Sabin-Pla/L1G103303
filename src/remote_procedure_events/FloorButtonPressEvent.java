@@ -46,6 +46,6 @@ public class FloorButtonPressEvent extends TimeEvent {
      * @return object in form of human readable string
      */
     public String toString() {
-        return new Date(this.getEventInstant().toEpochMilli()) + " From " + floor;
+        return new Date(this.getEventInstant().toEpochMilli()) + " From " + floor + " Goingup: " + goingUp;
     }
 }

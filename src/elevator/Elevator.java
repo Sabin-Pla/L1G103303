@@ -83,7 +83,7 @@ public class Elevator extends Thread {
 	}
 
 	public void engageMotor() throws InterruptedException {
-		System.out.println("Elevator: moving...");
+		System.out.println("Elevator: " + elevatorNumber + "  moving...");
 		try {
 			Duration d = Duration.ofMillis(MOVE_ONE_FLOOR_TIME).dividedBy(clock.getCompressionFactor());
 			sleep(d.toMillis());
@@ -92,14 +92,14 @@ public class Elevator extends Thread {
 		}
 		if (currentFloor > destinationFloor) {
 			currentFloor -= 1;
-			System.out.println("Elevator: Down a floor, now at " + currentFloor);
+			System.out.println("Elevator: " + elevatorNumber + " Down a floor, now at " + currentFloor);
 		} else {
 			currentFloor += 1;
-			System.out.println("Elevator: Up a floor, now at " + currentFloor);
+			System.out.println("Elevator: " + elevatorNumber + " Up a floor, now at " + currentFloor);
 		}
 		if (currentFloor == destinationFloor) {
 			doorsClosed = false;
-			System.out.println("Reached destination floor: " + currentFloor);
+			System.out.println("Elevator: " + elevatorNumber + " Reached destination floor: " + currentFloor);
 		}
 		reportMovement();
 	}
@@ -115,7 +115,12 @@ public class Elevator extends Thread {
 						e.printStackTrace();
 					}
 					if (destinationFloor == currentFloor) {
-						System.out.println("Redundant motor event to current floor");
+						if (doorsClosed) {
+							System.out.println("Elevator: " + elevatorNumber +
+									"Destination floor is here. Closing doors.");
+							doorsClosed = false;
+						}
+						reportMovement(); // let scheduler know the elevator has closed its doors
 					}
 				}
 				notifyAll();
@@ -150,10 +155,11 @@ public class Elevator extends Thread {
 				ObjectInputStream oinStream = new ObjectInputStream(bainStream);
 				ElevatorMotorEvent eme = (ElevatorMotorEvent) oinStream.readObject();
 				Elevator elevator = elevators[eme.getElevatorNumber()];
-				System.out.println("New destination floor: " + eme.getArrivalFloor());
+				System.out.println("Elevator: " + elevator.elevatorNumber + " New destination floor: "
+						+ eme.getArrivalFloor());
 				synchronized (elevator) {
 					elevator.destinationFloor = eme.getArrivalFloor();
-					System.out.println("Destination updated");
+					System.out.println("Elevator: " + elevator.elevatorNumber + " Destination updated");
 					elevator.notifyAll();
 				}
 			} catch (IOException e) {

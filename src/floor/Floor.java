@@ -86,7 +86,7 @@ public class Floor {
 		if (!arrivalEvent.getDoorsClosed()) {
 			floors[arrivalFloor - 1].elevatorArrived(elevatorNumber);
 		}
-		floors[lastArrivalFloors[elevatorNumber]].elevatorDeparted(elevatorNumber);
+		floors[lastArrivalFloors[elevatorNumber] - 1].elevatorDeparted(elevatorNumber);
 		lastArrivalFloors[elevatorNumber] = arrivalFloor;
 	}
 
