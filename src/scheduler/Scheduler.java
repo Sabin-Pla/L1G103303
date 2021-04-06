@@ -128,8 +128,13 @@ public class Scheduler implements Runnable {
 				/* Cancelling the current elevator movement request and moving it to a new location.
 				 add the last stop back int he stop queue */
 				lastStop = currentDestinations[elevatorNumber];
-				stops.add(1, lastStop);
-				return;
+				if ((floor > lastStop && lastStop > currentFloor) || (floor < lastStop && lastStop < currentFloor)) {
+					// if floor will be serviced after last stop
+					System.out.println("...");
+				} else {
+					stops.add(1, lastStop);
+					return;
+				}
 			}
 		} else {
 			lastStop = path.peekLast();
@@ -182,21 +187,20 @@ public class Scheduler implements Runnable {
 		if (expectedArrivalFloor != arrivalFloor) {
 			throw new ElevatorPositionException("Unexpected elevator position, assumed sensor failure\n" +
 					fae.toString() + " " + floorsToGoThroughQueues[elevatorNumber],
-					ElevatorPositionException.Type.PATH_MISMATCH);
+					ElevatorPositionException.Type.PATH_MISMATCH, elevatorNumber);
 		} else if (!doorsClosed) {
 			if (arrivalFloor != currentDestinations[elevatorNumber]) {
 				throw new ElevatorPositionException("Elevator stopped at wrong floor\n" +
 						fae.toString()  + " " + floorsToGoThroughQueues[elevatorNumber],
-						ElevatorPositionException.Type.WRONG_ARRIVAL_FLOOR);
+						ElevatorPositionException.Type.WRONG_ARRIVAL_FLOOR, elevatorNumber);
 			}
-			//stopQueues[elevatorNumber].pollFirst(); // elevator has stopped on the next floor in the stop queue
 			if (stopQueues[elevatorNumber].isEmpty()) return; // elevator reached destination floor
 			currentDestinations[elevatorNumber] = stopQueues[elevatorNumber].pollFirst();
 			sendMotorEvent(elevatorNumber, currentDestinations[elevatorNumber]);;
 		} else if (arrivalFloor ==  currentDestinations[elevatorNumber]) {
 			throw new ElevatorPositionException("Elevator doors are not open when they are supposed to be\n" +
 					fae.toString() + " " + floorsToGoThroughQueues[elevatorNumber],
-					ElevatorPositionException.Type.NOT_STOPPED);
+					ElevatorPositionException.Type.NOT_STOPPED, elevatorNumber);
 		}
 	}
 
@@ -211,56 +215,62 @@ public class Scheduler implements Runnable {
 	private int handleFloorButtonPress(FloorButtonPressEvent fbpe) {
 		int sourceFloor = fbpe.getFloor();
 		boolean goingUp = fbpe.isGoingUp();
-		Integer elevatorTimes[][] = new Integer[Floor.NUM_ELEVATORS][2];
+		Integer elevatorTimes[] = new Integer[Floor.NUM_ELEVATORS];
 		// pick the elevator where the source floor is along the path the earliest
+		/* "stopped" means the elevator has no moor floors to move through. Does not necessarily mean that the doors
+		* are closed in this context. */
 		boolean stopped[] = new boolean[Floor.NUM_ELEVATORS];
+		boolean prefDirection[] = new boolean[Floor.NUM_ELEVATORS];
 		for (int i = 0; i < Floor.NUM_ELEVATORS; i++) {
 			LinkedList<Integer> throughQueue = floorsToGoThroughQueues[i];
-			elevatorTimes[i][0] = 0;
-			elevatorTimes[i][1] = 0;
-			boolean doneFirst = false;  // done calculating time for first index of elevatorTimes[i]
-			boolean doneSecond = false; // done calculating time for second index of elevatorTimes[i]
+			int currentFloor = elevatorFloors[i];
+			elevatorTimes[i] = Math.abs(sourceFloor - currentFloor);
 			if (throughQueue.size() > 0) {
-				int lastFloor = throughQueue.get(throughQueue.size() - 1);
-				for (int j = throughQueue.size() - 1; j > -1; j--) {
-					if (!doneFirst && lastFloor > throughQueue.get(j) && !goingUp ||
-							lastFloor < throughQueue.get(j) && goingUp ) {
-						// floor intersection is in the desired direction.
-						lastFloor = throughQueue.get(j);
-						if (sourceFloor != throughQueue.get(j)) {
-							elevatorTimes[i][0] += 1;
-							doneFirst = true;
+				if (throughQueue.size() > 1) {
+					int sourceFloorIndex = throughQueue.indexOf(sourceFloor);
+					if (sourceFloorIndex >= 0) {
+						// elevator is crossing through floor where button was pressed
+						if (throughQueue.get(sourceFloorIndex - 1) > throughQueue.get(sourceFloorIndex)) {
+							if (goingUp) {
+								elevatorTimes[i] = sourceFloorIndex;
+								prefDirection[i] = true;
+							}
+						} else if (throughQueue.get(sourceFloorIndex - 1) < throughQueue.get(sourceFloorIndex)) {
+							if (!goingUp) {
+								elevatorTimes[i] = sourceFloorIndex;
+								prefDirection[i] = true;
+							}
 						}
-					} else if (!doneSecond){
-						// floor intersection is not in the desired direction.
-						if (sourceFloor != throughQueue.get(j)) {
-							elevatorTimes[i][1] += 1;
-							doneSecond = true;
-						}
+					} else { // sourceFloorIndex < 0
+						elevatorTimes[i] = Math.abs(throughQueue.peekLast() - sourceFloor);
+						prefDirection[i] = false;
 					}
-					if (doneFirst && doneSecond) break;
+				} else { // throughQueue.size() <= 1
+					elevatorTimes[i] = Math.abs(throughQueue.peekLast() - sourceFloor);
+					if (currentFloor < throughQueue.peekLast() && goingUp
+						&& sourceFloor > throughQueue.peekLast()) prefDirection[i] = true;
+					if ( currentFloor > throughQueue.peekLast() && !goingUp
+						&& sourceFloor < throughQueue.peekLast()) prefDirection[i] = true;
 				}
-				elevatorTimes[i][0] += Math.abs(sourceFloor - elevatorFloors[i]);
-				elevatorTimes[i][1] += Math.abs(sourceFloor - elevatorFloors[i]);
-			} // if throughQueue.size() > 0
-			stopped[i] = true; // elevator is stopped
+			} else { // if throughQueue.size() == 0
+				stopped[i] = true; // elevator is stopped
+				prefDirection[i] = true;
+			}
 		}
-		int fastestElevators[] = new int[2];
-		int minPressDirection = elevatorTimes[0][0];
-		int minNonPressDirection = elevatorTimes[0][0];
+		int fastestElevator = 0;
+		int minTime = elevatorTimes[0];
+		if (!prefDirection[0]) minTime += Floor.NUM_FLOORS;
 		for (int i=0; i < elevatorTimes.length; i++) {
-			if (elevatorTimes[i][0] < minPressDirection) {
-				minPressDirection = elevatorTimes[i][0];
-				fastestElevators[0] = i;
-			}
-			if (elevatorTimes[i][1] < minNonPressDirection) {
-				minNonPressDirection = elevatorTimes[i][1];
-				fastestElevators[1] = i;
+			if (elevatorTimes[i] < minTime && prefDirection[i]) {
+				minTime = elevatorTimes[i];
+				fastestElevator = i;
+			} else if (elevatorTimes[i] < minTime - Floor.NUM_FLOORS && !prefDirection[i]) {
+				minTime = elevatorTimes[i];
+				fastestElevator = i;
 			}
 		}
-		int fastestElevator = fastestElevators[0];
-		if (fastestElevators[1] + (Floor.NUM_FLOORS) / 2 < fastestElevators[0]) {
-			fastestElevator = fastestElevators[1];
+		if (sourceFloor == 6) {
+			System.out.println("here");
 		}
 		setNextStop(fastestElevator, sourceFloor);
 		if (stopped[fastestElevator]) return fastestElevator;
@@ -374,7 +384,17 @@ public class Scheduler implements Runnable {
 					sendMotorEvent(selectedElevator, currentDestinations[selectedElevator]);
 				} // no work needs to be done
 				notifyAll();
-			} catch (ElevatorPositionException | InterruptedException e) {
+			} catch (ElevatorPositionException epe) {
+				if (epe.getType() == ElevatorPositionException.Type.NOT_STOPPED) {
+					System.out.println("Elevator doors closed. Opening them...");
+					// Doors were not opened when they were supposed to be. Open them.
+					int elevatorNumber = epe.getElevator();
+					sendMotorEvent(elevatorNumber, currentDestinations[elevatorNumber]);;
+				} else {
+					epe.printStackTrace();
+					System.exit(1);
+				}
+			} catch (InterruptedException e) {
 				e.printStackTrace();
 				System.exit(1);
 			}
