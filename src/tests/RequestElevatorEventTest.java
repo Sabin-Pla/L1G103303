@@ -8,6 +8,7 @@ import org.junit.Test;
 import java.time.Instant;
 
 public class RequestElevatorEventTest {
+
     @Test
     public void RequestElevatorEvent() throws InvalidDirectionException {
         Instant now = Instant.now();

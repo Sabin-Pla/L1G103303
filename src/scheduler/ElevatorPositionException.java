@@ -22,7 +22,7 @@ public class ElevatorPositionException extends Exception {
     }
 
     public Type getType() {
-        return  type;
+        return type;
     }
 
     public int getElevator() {
