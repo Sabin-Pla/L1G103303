@@ -13,10 +13,9 @@ public class ElevatorMotorEventTest {
     private int elevatorNumber = 5;
     private  int destinationFloor = 10;
 
-    ElevatorMotorEvent e = new ElevatorMotorEvent(eventInstant, elevatorNumber, destinationFloor);
-
     @Test
     public void ElevatorMotorTest(){
+        ElevatorMotorEvent e = new ElevatorMotorEvent(eventInstant, elevatorNumber, destinationFloor);
         assert (e != null);
         assert (e.getArrivalFloor() == destinationFloor);
         assert (e.getElevatorNumber() == elevatorNumber);

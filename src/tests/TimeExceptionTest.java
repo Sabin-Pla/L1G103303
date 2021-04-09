@@ -8,7 +8,7 @@ public class TimeExceptionTest {
     TimeException time = new TimeException(message);
 
     @Test
-    public void DirectionTest(){
-        assert (time != null);
+    public void TimeExceptionTest(){
+        assert (message != null);
     }
 }

@@ -34,7 +34,7 @@ public class Floor {
 	private TimeQueue carButtonEventQueue;
 	private boolean floorLamps[];
 	private DatagramSocket sendSocket;
-	private static DatagramSocket receiveSocket;
+	public static DatagramSocket receiveSocket;
 	private static int elevatorFloors[];
 	private static Floor[] floors;
 	private static int lastArrivalFloors[];
