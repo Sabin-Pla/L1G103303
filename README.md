@@ -232,9 +232,7 @@ In order to run unit tests:
 1. right click the "tests" package in the project explorer pane 
 2. click Run As -> JUnit Test
 
-In order to execture the simulation and run integration testing if the requestFile supports it:  
-1. Click the dropdown arrow beside the run button on the Eclipse toolbar
-2. Click "All 3 Systems", the pre-existing launch configuration that launches the 3 seperate programs at once.
-
+In order to execute the simulation and run integration testing if the requestFile supports it:  
 The Scheduler, Floor, and Elevator can each be individually started by right clicking their respective .java files and clicking Run As -> Java Application
+The Floor must be started last as the simulation begins when it's done initializing
 
