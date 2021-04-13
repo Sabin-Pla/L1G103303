@@ -136,7 +136,7 @@ public class Floor {
 			simulationDone[floorNumber - 1] = false;
 		}
 		
-		if (actorEventQueue.isEmpty()) {
+		if (actorEventQueue.isEmpty() & !sentCarButtonPresses) {
 			boolean done = true;
 			for (int i = 0; i < simulationDone.length; i++) {
 				if (simulationDone[i] == false) done = false;
