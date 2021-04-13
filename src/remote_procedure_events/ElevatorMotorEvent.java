@@ -27,6 +27,7 @@ public class ElevatorMotorEvent extends TimeEvent {
         return elevatorNumber;
     }
 
+<<<<<<< HEAD
 	public boolean getError() {
 		return doorError;
 	}
@@ -34,4 +35,13 @@ public class ElevatorMotorEvent extends TimeEvent {
 	 public String toString() {
 		 return Date.from(getEventInstant()) + " elevator: " + elevatorNumber + " to floor: " + destinationFloor;
 	 }
+=======
+    public String toString() {
+        return Date.from(getEventInstant()) + " elevator: " + elevatorNumber + " to floor: " + destinationFloor;
+    }
+
+	public boolean getError() {
+		return doorError;
+	}
+>>>>>>> origin/master
 }

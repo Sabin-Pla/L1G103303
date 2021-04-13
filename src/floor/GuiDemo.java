@@ -43,5 +43,4 @@ public class GuiDemo extends TimeEventListener {
 	public void simulatedErrorOccurred(String errorMessage) {
 		System.out.println(errorMessage);
 	}
-
 }

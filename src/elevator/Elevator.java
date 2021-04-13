@@ -106,7 +106,6 @@ public class Elevator extends Thread {
 				System.out.println("Elevator: " + elevatorNumber +
 						" Destination floor is here but simulating door error. Doors remaining closed.");
 				doorErrorFloor = null;
-				
 			} else {
 				doorsClosed = false;
 				System.out.println("Elevator: " + elevatorNumber + " Reached destination floor: " + currentFloor);
