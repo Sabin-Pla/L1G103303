@@ -233,8 +233,8 @@ public class Floor {
 
 		setReceiveSocket(FloorArrivalEvent.FLOOR_LISTEN_PORT);
 		clock.start();
-		GuiDemo guiDemo = new GuiDemo();
-		guiDemo.start();
+		GUI gui = new GUI();
+		gui.start();
 		
 		System.out.println("Simulation started...");
 
