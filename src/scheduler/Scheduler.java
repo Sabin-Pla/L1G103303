@@ -6,6 +6,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -173,7 +174,7 @@ public class Scheduler implements Runnable {
 		elevatorFloors[elevatorNumber] = arrivalFloor;
 		System.out.println("Processing floor arrival for elevator " + elevatorNumber + " at floor " + arrivalFloor +
 				"\nremaining floor intersections: " + stopQueues[elevatorNumber].getRemainingFloors() + " current destination: " + currentDestinations[elevatorNumber]);
-		System.out.print("stops : ");
+		System.out.print("stops : :");
 		stopQueues[elevatorNumber].printQueue();
 		int expected = 0;
 		try {
@@ -194,7 +195,8 @@ public class Scheduler implements Runnable {
 			}
 			if (expected == currentDestinations[elevatorNumber]) {
 				System.out.println("elevator " + elevatorNumber + " reached destination floor");
-				currentDestinations[elevatorNumber] = stopQueues[elevatorNumber].pollNext();
+				Integer nextStop = stopQueues[elevatorNumber].pollNext();
+				if (nextStop != null) currentDestinations[elevatorNumber] = nextStop;
 				return -1;
 			} else if (expected != 0) {
 				System.out.println("Not at destination floor. Current Destination is  " + currentDestinations[elevatorNumber]);
@@ -225,6 +227,11 @@ public class Scheduler implements Runnable {
 		int sourceFloor = fbpe.getFloor();
 		boolean goingUp = fbpe.isGoingUp();
 		boolean error = fbpe.doorError();
+		
+		for (StopQueue sq : stopQueues) {
+			if (sq.hasQueued(sourceFloor)) return -1;
+		}
+		
 		if (error) this.nextErrorFloor = sourceFloor;
 
 		int serviceTimes[] = new int[Floor.NUM_ELEVATORS];
@@ -347,7 +354,17 @@ public class Scheduler implements Runnable {
 		synchronized (this) {
 			try {
 				while (timeQueue.isEmpty()) {
-					wait();
+					final int SIGNAL_RESTART_TIME = 30;
+					wait(Duration.ofSeconds(SIGNAL_RESTART_TIME).dividedBy(clock.getCompressionFactor()).toMillis());
+					if (timeQueue.isEmpty()){
+						for (int i=0; i < Floor.NUM_ELEVATORS; i++) {
+							if (elevatorFloors[i] == currentDestinations[i] && !stopQueues[i].isEmpty()) {
+								System.out.println("Restarting elevator " + i);
+								currentDestinations[i] = stopQueues[i].pollNext();
+								sendMotorEvent(i, currentDestinations[i]);
+							}
+						}
+					}
 				}
 				TimeEvent work = timeQueue.nextEvent();
 				int selectedElevator = schedule(work);

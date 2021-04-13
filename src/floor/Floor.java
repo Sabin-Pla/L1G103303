@@ -68,7 +68,8 @@ public class Floor {
 				// out of actor events to send
 				receiveSocket.setSoTimeout(0);
 			} else {
-				receiveSocket.setSoTimeout(Math.abs((int) timeout.toMillis()));
+				int timeoutMilis = (int) timeout.toMillis();
+				receiveSocket.setSoTimeout(timeoutMilis);
 			}
 			receiveSocket.receive(receivePacket);
 		} catch (SocketTimeoutException e) {

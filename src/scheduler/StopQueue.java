@@ -205,12 +205,18 @@ public class StopQueue {
 			if (i != stops.size() - 1) {
 				System.out.print(stops.get(i).floor + ", ");
 			} else {
-				System.out.println(stops.get(i).floor + " ]");
+				System.out.print(stops.get(i).floor);
 			}
 		}
+		System.out.println(" ]");
 	}
 
 	public void reportDoorFailure(int expected) {
 		remainingFloors.push(expected);
+	}
+	
+	public boolean hasQueued(int stopNumber) {
+		return stops.indexOf(new Stop(stopNumber)) != -1;
+		
 	}
 }

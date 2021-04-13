@@ -1,7 +1,38 @@
 package floor;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.Scanner;
+
 public class GuiDemo extends TimeEventListener {
 
+	private Queue<String>[] expectedArrivals;
+	
+	@SuppressWarnings("unchecked")
+	public GuiDemo() {
+		super();
+		expectedArrivals = new LinkedList[Floor.NUM_ELEVATORS];
+		for (int i=0; i < Floor.NUM_ELEVATORS; i++) {
+			expectedArrivals[i] = new LinkedList<String>();
+		}
+		
+		File expected = new File("expected.txt");
+		Scanner s = null;
+		try {
+			s = new Scanner(expected);
+			for (int i=0; i < Floor.NUM_ELEVATORS; i++) {
+				for (String arrival : s.nextLine().split(" ")) {
+					expectedArrivals[i].add(arrival);
+				}
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
+	}
+	
 	@Override
 	public void floorButtonPressed(int sourceFloor, boolean up) {
 		System.out.println("Floor " + sourceFloor + " button pressed, up: " + up);
@@ -20,6 +51,14 @@ public class GuiDemo extends TimeEventListener {
 
 	@Override
 	public void elevatorArrived(int elevatorNumber, int floor, boolean doorsClosed) {
+		String arrivalString = String.valueOf(floor);
+		if (!doorsClosed) arrivalString += "x";
+		String expectedArrivalString = expectedArrivals[elevatorNumber].poll();
+		if (!expectedArrivalString.equals(arrivalString)) {
+			System.out.println("Simulation test failure");
+			System.out.println(arrivalString + " : " + expectedArrivalString);
+			System.exit(1);
+		}
 		System.out.println("Elevator " + elevatorNumber + " now at floor " + floor + ", Doors closed? " + doorsClosed);
 	}
 
