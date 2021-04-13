@@ -103,8 +103,5 @@ public class StopQueueTest {
             assert (stopTime > lastStopTime);
             lastStopTime = stopTime;
         }
-        sq.addStop(10, 1);
-        sq.addStop(1, 10);
-        assert (sq.calculateStopTime(1, 10) > sq.calculateStopTime(5, 10));
     }
 }
