@@ -36,9 +36,7 @@ public class TimeEventTest {
 
     @Test
     public void hasPassed() throws InterruptedException {
-        Duration pastLeniencyDuration = Duration.ofMillis(TimeEvent.PAST_EVENT_LENIENCY).
-                dividedBy(clock.getCompressionFactor());
-        Thread.sleep(500 + pastLeniencyDuration.toMillis());
+        Thread.sleep(200);
         assert (eventNow.hasPassed(clock));
         assert (!eventLater.hasPassed(clock));
         Thread.sleep(500);
