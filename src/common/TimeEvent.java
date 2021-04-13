@@ -68,7 +68,7 @@ public class TimeEvent implements Comparable, java.io.Serializable {
     @Override
     public int compareTo(Object o) {
         if (o instanceof TimeEvent) {
-            boolean after = eventInstant.minusMillis(PAST_EVENT_LENIENCY).isAfter(((TimeEvent) o).getEventInstant());
+            boolean after = eventInstant.plusMillis(PAST_EVENT_LENIENCY).isAfter(((TimeEvent) o).getEventInstant());
             if (after) {
                 return 1;
             } else {
@@ -85,6 +85,6 @@ public class TimeEvent implements Comparable, java.io.Serializable {
      * @return true if the event occurrence time is more than PAST_EVENT_LENIENCY ms in the past
      */
     public boolean hasPassed(SimulationClock clock) {
-        return eventInstant.isBefore(clock.instant().plusMillis(PAST_EVENT_LENIENCY));
+        return eventInstant.isBefore(clock.instant().minusMillis(PAST_EVENT_LENIENCY));
     }
 }

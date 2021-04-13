@@ -1,4 +1,4 @@
-# Project Iteration 4 : SYSC3303 L1, GROUP 10
+# Project Iteration 5 : SYSC3303 L1, GROUP 10
 
 Simulation of a real time elevator system. 
 
@@ -224,9 +224,17 @@ The simulation files are formatted as follows:
 <timestamp simulation start time> <time compression>
 ### Setup and Test
 1. Extract the zip file to your desktop.
-2. In eclipse: File -> Import -> General -> Existing Projects into Workspace -> Select root directory -> Browse
-3. Select the extracted folder and then click 'Finish'
-4. Navigate to the 'tests' package 
-5. You will now see all of the test files and are able to run them at your discretion 
+2. In eclipse: File -> Import -> Projects from Folder or Archive -> 
+3. Click "archive" and select the zip file containing this README.md.
+4. Click "Finished"
 
+In order to run unit tests:  
+1. right click the "tests" package in the project explorer pane 
+2. click Run As -> JUnit Test
+
+In order to execture the simulation and run integration testing if the requestFile supports it:  
+1. Click the dropdown arrow beside the run button on the Eclipse toolbar
+2. Click "All 3 Systems", the pre-existing launch configuration that launches the 3 seperate programs at once.
+
+The Scheduler, Floor, and Elevator can each be individually started by right clicking their respective .java files and clicking Run As -> Java Application
 

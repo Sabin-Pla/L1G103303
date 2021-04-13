@@ -16,8 +16,8 @@ public class CarButtonEventTest {
         assert (carButtonEvent != null);
         assert (carButtonEvent.getDestinationFloor() == 2);
         assert (carButtonEvent.getEventInstant().equals(now));
-        RequestElevatorEvent requestElevatorEvent = new RequestElevatorEvent( 7, false, carButtonEvent);
+        RequestElevatorEvent requestElevatorEvent = new RequestElevatorEvent( 7, false, false, carButtonEvent);
         assert (requestElevatorEvent != null);
-        RequestElevatorEvent invalidEvent = new RequestElevatorEvent( 7, true, carButtonEvent);
+        RequestElevatorEvent invalidEvent = new RequestElevatorEvent( 7, true, false, carButtonEvent);
     }
 }

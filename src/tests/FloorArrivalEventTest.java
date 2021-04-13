@@ -8,15 +8,15 @@ import java.time.Instant;
 import java.util.Date;
 
 public class FloorArrivalEventTest {
-    private Instant eventInstant;
-    private int elevatorNumber = 5;
-    private  int arrivalFloor = 10;
-    private boolean doorsClosed = true;
-
-    FloorArrivalEvent f = new FloorArrivalEvent(eventInstant, elevatorNumber, arrivalFloor, doorsClosed);
 
     @Test
-    public void FloorArrivalTest(){
+    public void FloorArrivalTest() {
+    	Instant eventInstant = Instant.now();
+        int elevatorNumber = 5;
+        int arrivalFloor = 10;
+        boolean doorsClosed = true;
+        FloorArrivalEvent f = new FloorArrivalEvent(eventInstant, elevatorNumber, arrivalFloor, doorsClosed);
+  
         assert (f != null);
         assert (f.getArrivalFloor() == arrivalFloor);
         assert (f.getElevatorNumber() == elevatorNumber);

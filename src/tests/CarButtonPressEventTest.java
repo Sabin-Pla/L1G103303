@@ -6,15 +6,17 @@ import remote_procedure_events.CarButtonPressEvent;
 import java.time.Instant;
 
 public class CarButtonPressEventTest {
-    private int sourceFloor = 1;
-    private int elevatorNumber = 2;
-    private int destinationFloor = 5;
-    private Instant eventInstant;
-
-    CarButtonPressEvent c = new CarButtonPressEvent(eventInstant, sourceFloor, elevatorNumber, destinationFloor);
 
     @Test
-    public void CBPE(){
+    public void CBPE() {
+    	
+    	int sourceFloor = 1;
+        int elevatorNumber = 2;
+        int destinationFloor = 5;
+        Instant eventInstant = Instant.now();
+
+        CarButtonPressEvent c = new CarButtonPressEvent(eventInstant, sourceFloor, elevatorNumber, destinationFloor);
+        
         assert (c != null);
         assert (c.getElevatorNumber() == elevatorNumber);
         assert (c.getSourceFloor() == sourceFloor);

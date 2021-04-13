@@ -23,7 +23,8 @@ public abstract class TimeEventListener extends Thread {
 	public static final int LISTENER_RECEIVE_PORT = 90 + 1024;
 	private DatagramSocket receiveSocket;
 	private boolean floorDoneSimulation;
-	public static final int SME_HEADER = 4;
+	public static final int ERROR_HEADER = 5;
+	public static final int END_HEADER = 4;
 	public static final int LAMP_HEADER = 3;
 	public static final int CAR_BUTTON_HEADER = 2;
 	public static final int FLOOR_ARRIVAL_HEADER = 1;
@@ -88,14 +89,16 @@ public abstract class TimeEventListener extends Thread {
 				} else {
 					lampOff(fle.getFloor());
 				}
-			} else if (headerByte == Integer.valueOf(SME_HEADER).byteValue()) {
-				SimulationEndEvent sme = (SimulationEndEvent) oinStream.readObject();
-				if (sme.isFloor() && !floorDoneSimulation) {
+			} else if (headerByte == Integer.valueOf(END_HEADER).byteValue()) {
+				SimulationEndEvent endEvent = (SimulationEndEvent) oinStream.readObject();
+				if (endEvent.isFloor() && !floorDoneSimulation) {
 					System.out.println("Floor done sending events (including car presses)");
 					floorDoneSimulation = true;
 				}
-				// if both the floor and scheduler subsystems signaled that they have reached the end of their simulation
-				if (floorDoneSimulation && !sme.isFloor()) simulationEnd();
+				if (floorDoneSimulation && !endEvent.isFloor()) simulationEnd();
+			} else if (headerByte == Integer.valueOf(ERROR_HEADER).byteValue()) {
+				SimulatedErrorEvent errEvent = (SimulatedErrorEvent) oinStream.readObject();
+				simulatedErrorOccurred(errEvent.getExceptionMessage());
 			}
 		} catch (IOException | ClassNotFoundException e) {
 			e.printStackTrace();
@@ -115,6 +118,7 @@ public abstract class TimeEventListener extends Thread {
 	
 	protected abstract void carButtonPressed(int elevatorNumber, int floorNUmber);
 	
+	public abstract void simulatedErrorOccurred(String errorMessage);
 	// called when all requests have been fulfilled and the simulation ends
 	protected abstract void simulationEnd();
 }

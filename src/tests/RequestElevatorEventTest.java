@@ -13,7 +13,7 @@ public class RequestElevatorEventTest {
     public void RequestElevatorEvent() throws InvalidDirectionException {
         Instant now = Instant.now();
         CarButtonEvent carButtonEvent = new CarButtonEvent(now, 7);
-        RequestElevatorEvent requestElevatorEvent = new RequestElevatorEvent(4, true, carButtonEvent);
+        RequestElevatorEvent requestElevatorEvent = new RequestElevatorEvent(4, true, false, carButtonEvent);
         assert (requestElevatorEvent.getFloor() == 4);
         assert (requestElevatorEvent.isGoingUp());
         assert (requestElevatorEvent.getEventInstant().equals(now));

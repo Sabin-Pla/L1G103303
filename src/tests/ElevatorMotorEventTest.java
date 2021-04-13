@@ -9,13 +9,20 @@ import java.util.Date;
 
 public class ElevatorMotorEventTest {
 
-    private Instant eventInstant;
-    private int elevatorNumber = 5;
-    private  int destinationFloor = 10;
+
+<<<<<<< HEAD
 
     @Test
     public void ElevatorMotorTest() {
+    	Instant eventInstant = Instant.now();
+        int elevatorNumber = 5;
+        int destinationFloor = 10;
+        ElevatorMotorEvent e = new ElevatorMotorEvent(eventInstant, elevatorNumber, destinationFloor, false);
+=======
+    @Test
+    public void ElevatorMotorTest() {
         ElevatorMotorEvent e = new ElevatorMotorEvent(eventInstant, elevatorNumber, destinationFloor);
+>>>>>>> origin/master
         assert (e != null);
         assert (e.getArrivalFloor() == destinationFloor);
         assert (e.getElevatorNumber() == elevatorNumber);

@@ -68,7 +68,7 @@ public class Floor {
 				// out of actor events to send
 				receiveSocket.setSoTimeout(0);
 			} else {
-				receiveSocket.setSoTimeout((int) timeout.toMillis());
+				receiveSocket.setSoTimeout(Math.abs((int) timeout.toMillis()));
 			}
 			receiveSocket.receive(receivePacket);
 		} catch (SocketTimeoutException e) {
@@ -143,7 +143,7 @@ public class Floor {
 			}
 			if (done) {
 				SimulationEndEvent sme = new SimulationEndEvent(Instant.now(), true);
-				sme.forwardEventToListener(TimeEventListener.SME_HEADER);
+				sme.forwardEventToListener(TimeEventListener.END_HEADER);
 			}
 		}
 	}

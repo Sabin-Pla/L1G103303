@@ -95,7 +95,7 @@ public class StopQueueTest {
     }
 
     @Test
-    public void CalculateStopTimeTest() {
+    public void calculateStopTimeTest() {
         int lastStopTime = sq.calculateStopTime(1, 1);
         assert (lastStopTime == 0); // ensure the stop time is 0 if the elevator is already at the floor
         for (int i = 2; i < 10; i++) {

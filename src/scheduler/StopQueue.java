@@ -14,7 +14,8 @@ public class StopQueue {
         stops = new ArrayList<>();
     }
 
-    public StopQueue(StopQueue sq) {
+    @SuppressWarnings("unchecked")
+	public StopQueue(StopQueue sq) {
         this.stops = (ArrayList<Stop>) sq.stops.clone();
         this.goingUp = sq.goingUp;
     }
@@ -23,7 +24,12 @@ public class StopQueue {
     	return remainingFloors.pop();
     }
     
+<<<<<<< HEAD
+    @SuppressWarnings("unchecked")
+	public Stack<Integer> getRemainingFloors() {
+=======
     public Stack<Integer> getRemainingFloors() {
+>>>>>>> origin/master
     	if (remainingFloors == null) return null;
     	return (Stack<Integer>) remainingFloors.clone();
     }

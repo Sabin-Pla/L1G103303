@@ -1,6 +1,7 @@
 package scheduler;
 
 import java.io.*;
+
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -14,6 +15,7 @@ import java.util.LinkedList;
 
 import common.*;
 import floor.Floor;
+import floor.SimulatedErrorEvent;
 import floor.SimulationEndEvent;
 import floor.TimeEventListener;
 import remote_procedure_events.CarButtonPressEvent;
@@ -23,10 +25,10 @@ import remote_procedure_events.FloorButtonPressEvent;
 
 /**
  * This scheduler is the middle man between the elevator and
- * the floor sub systems. It schedules requests for both subsystems
+ * the floor sub systems.
  *
  * @author Mmedara Josiah, Sabin Plaiasu
- * @version Iteration 4
+ * @version Iteration 5
  */
 public class Scheduler implements Runnable {
 
@@ -165,7 +167,7 @@ public class Scheduler implements Runnable {
 		}
 		if (done) { 
 			SimulationEndEvent sme = new SimulationEndEvent(Instant.now(), false); // send event saying scheduler is done simulating all the events sent to it thus far
-			sme.forwardEventToListener(TimeEventListener.SME_HEADER);
+			sme.forwardEventToListener(TimeEventListener.END_HEADER);
 		}
 		
 		elevatorFloors[elevatorNumber] = arrivalFloor;
@@ -355,6 +357,8 @@ public class Scheduler implements Runnable {
 				} // no work needs to be done
 				notifyAll();
 			} catch (ElevatorPositionException epe) {
+				SimulatedErrorEvent see = new SimulatedErrorEvent(Instant.now(), epe.toString());
+				see.forwardEventToListener(TimeEventListener.ERROR_HEADER);
 				if (epe.getType() == ElevatorPositionException.Type.NOT_STOPPED) {
 					epe.printStackTrace();
 					System.out.println("Transient error. Elevator doors closed. Opening them...");

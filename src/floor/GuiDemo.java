@@ -39,4 +39,8 @@ public class GuiDemo extends TimeEventListener {
 		System.out.println("Elevator " + elevatorNumber + " departed floor " + floor);
 	}
 
+	@Override
+	public void simulatedErrorOccurred(String errorMessage) {
+		System.out.println(errorMessage);
+	}
 }
