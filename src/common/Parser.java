@@ -74,6 +74,9 @@ public class Parser {
             int sourceFloor = Integer.parseInt(line.split(" ")[1]);
             boolean goingUp = line.split(" ")[2].equals("Up");
             int destinationFloor = Integer.parseInt(line.split(" ")[3]);
+            
+            boolean doorError = false;
+            if (line.contains("DoorOpenFailure")) doorError = true;
 
             Instant pressInstant = parseInstant(pressTime, days);
 
@@ -83,6 +86,7 @@ public class Parser {
             RequestElevatorEvent requestElevatorEvent = new RequestElevatorEvent(
                     sourceFloor,
                     goingUp,
+                    doorError,
                     carButtonEvent);
 
             events.add(requestElevatorEvent);

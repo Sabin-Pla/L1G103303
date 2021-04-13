@@ -3,6 +3,7 @@ package elevator;
 import common.Parser;
 import common.SimulationClock;
 import floor.Floor;
+import floor.TimeEventListener;
 import remote_procedure_events.CarButtonPressEvent;
 import remote_procedure_events.ElevatorMotorEvent;
 import remote_procedure_events.FloorArrivalEvent;
@@ -35,12 +36,14 @@ public class Elevator extends Thread {
 	private boolean doorsClosed;
 	private int elevatorNumber;
 	private static Elevator[] elevators;
+	private Integer doorErrorFloor;
 
 	public Elevator(int elevatorNumber, int currentFloor) throws SocketException {
 		this.elevatorNumber = elevatorNumber;
 		this.currentFloor = currentFloor;
 		this.destinationFloor = currentFloor;
 		this.doorsClosed = true;
+		this.doorErrorFloor = null;
 		this.sendSocket = new DatagramSocket();
 	}
 
@@ -77,6 +80,7 @@ public class Elevator extends Thread {
 			DatagramPacket floorPacket = new DatagramPacket(data,
 					data.length, InetAddress.getLocalHost(), FloorArrivalEvent.FLOOR_LISTEN_PORT);
 			sendSocket.send(floorPacket);
+			fae.forwardEventToListener(TimeEventListener.FLOOR_ARRIVAL_HEADER);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -98,8 +102,14 @@ public class Elevator extends Thread {
 			System.out.println("Elevator: " + elevatorNumber + " Up a floor, now at " + currentFloor);
 		}
 		if (currentFloor == destinationFloor) {
-			doorsClosed = false;
-			System.out.println("Elevator: " + elevatorNumber + " Reached destination floor: " + currentFloor);
+			if (doorErrorFloor != null && doorErrorFloor == destinationFloor) {
+				System.out.println("Elevator: " + elevatorNumber +
+						" Destination floor is here but simulating door error. Doors remaining closed.");
+				doorErrorFloor = null;
+			} else {
+				doorsClosed = false;
+				System.out.println("Elevator: " + elevatorNumber + " Reached destination floor: " + currentFloor);
+			}
 		}
 		reportMovement();
 	}
@@ -117,8 +127,8 @@ public class Elevator extends Thread {
 					if (destinationFloor == currentFloor) {
 						if (doorsClosed) {
 							System.out.println("Elevator: " + elevatorNumber +
-									"Destination floor is here. Closing doors.");
-							doorsClosed = false;
+									" Destination floor is here. Opening doors.");
+							doorsClosed = false;		
 						}
 						reportMovement(); // let scheduler know the elevator has closed its doors
 					}
@@ -158,6 +168,12 @@ public class Elevator extends Thread {
 				System.out.println("Elevator: " + elevator.elevatorNumber + " New destination floor: "
 						+ eme.getArrivalFloor());
 				synchronized (elevator) {
+					if (eme.getError()) {
+						elevator.doorErrorFloor = eme.getArrivalFloor(); 
+						System.out.println("Error floor : " + elevator.doorErrorFloor);
+					} else {
+						elevator.doorErrorFloor = null;
+					}
 					elevator.destinationFloor = eme.getArrivalFloor();
 					System.out.println("Elevator: " + elevator.elevatorNumber + " Destination updated");
 					elevator.notifyAll();
@@ -180,10 +196,12 @@ public class Elevator extends Thread {
 		clock = p.getClock();
 		setSchedulerSocketReceiver(ElevatorMotorEvent.ELEVATOR_RECEIVE_PORT);
 		setFloorSocketReceiver(CarButtonPressEvent.ELEVATOR_LISTEN_PORT);
-		for(int i=0; i < Floor.NUM_ELEVATORS; i++) elevators[i] = new Elevator(i, 1);
-		Thread motorThread = new Thread(elevators[0], "motor");
+		for(int i=0; i < Floor.NUM_ELEVATORS; i++) {
+			elevators[i] = new Elevator(i, 1);
+			Thread motorThread = new Thread(elevators[i], "motor");
+			motorThread.start();
+		}
 		Thread buttonThread = new Thread(elevators[0], "button_handler");
-		motorThread.start();
 		buttonThread.start();
 		while (true) {
 			listenToScheduler();

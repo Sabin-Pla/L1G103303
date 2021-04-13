@@ -11,6 +11,7 @@ import remote_procedure_events.FloorButtonPressEvent;
 import java.io.*;
 import java.net.*;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 
 /**
@@ -19,14 +20,14 @@ import java.util.ArrayList;
  * A Floor thread must be notified every time the elevator comes and leaves at its floor
  * 
  * @author Sabin Plaiasu
- * @version Iteration 4
+ * @version Iteration 5
  */
 public class Floor {
 
-	public static final long MAXIMUM_WAIT_TIME = 120000; // max amount of time (ms) a thread should wait for an elevator
+	public static final long MAXIMUM_WAIT_TIME = 1200000; // max amount of time (ms) a thread should wait for an elevator
 	public static final int NUM_FLOORS = 10;
 	public static final int NUM_ELEVATORS = 2;
-	public static final String REQUEST_FILE = "common/requestsFile.txt";
+	public static final String REQUEST_FILE = "requestsFile.txt";
 	
 	private final int floorNumber;
 	private static SimulationClock clock;
@@ -34,10 +35,11 @@ public class Floor {
 	private TimeQueue carButtonEventQueue;
 	private boolean floorLamps[];
 	private DatagramSocket sendSocket;
-	private static DatagramSocket receiveSocket;
+	public static DatagramSocket receiveSocket;
 	private static int elevatorFloors[];
 	private static Floor[] floors;
 	private static int lastArrivalFloors[];
+	private boolean simulationDone[];
 
 	/**
 	 * Constructor initializes all variables
@@ -47,6 +49,8 @@ public class Floor {
 		this.floorLamps = new boolean[2];
 		this.carButtonEventQueue = new TimeQueue();
 		this.sendSocket = new DatagramSocket();
+		this.simulationDone = new boolean[NUM_FLOORS]; 
+		for (int i=0; i < NUM_FLOORS; i++) simulationDone[i] = true;
 		for (int i=0; i < NUM_ELEVATORS; i++) {
 			elevatorFloors[i] = 1;  // assume all elevators are at floor 1 to start
 		}
@@ -61,6 +65,7 @@ public class Floor {
 		DatagramPacket receivePacket = new DatagramPacket(data, data.length);
 		try {
 			if (timeout == null) {
+				// out of actor events to send
 				receiveSocket.setSoTimeout(0);
 			} else {
 				receiveSocket.setSoTimeout((int) timeout.toMillis());
@@ -82,10 +87,10 @@ public class Floor {
 		}
 		int elevatorNumber = arrivalEvent.getElevatorNumber();
 		int arrivalFloor = arrivalEvent.getArrivalFloor();
-		elevatorFloors[elevatorNumber] = arrivalFloor;
 		if (!arrivalEvent.getDoorsClosed()) {
 			floors[arrivalFloor - 1].elevatorArrived(elevatorNumber);
 		}
+		
 		floors[lastArrivalFloors[elevatorNumber] - 1].elevatorDeparted(elevatorNumber);
 		lastArrivalFloors[elevatorNumber] = arrivalFloor;
 	}
@@ -99,9 +104,23 @@ public class Floor {
 	 *
 	 */
 	public void elevatorArrived(int elevatorNumber) throws ElevatorWaitTimeException {
-		floorLamps[elevatorNumber] = true;
-		System.out.println("Floor " + floorNumber + ": turning lamp on");
+		boolean elevatorWasAlreadyHere = false;
+		for (int f : elevatorFloors)  {
+			if (f == this.floorNumber) elevatorWasAlreadyHere = true;
+		}
+		
+		if (!elevatorWasAlreadyHere) {
+			System.out.println("Floor " + floorNumber + ": turning lamp on");
+			floorLamps[elevatorNumber] = true;
+			FloorLampEvent fle = new FloorLampEvent(Instant.now(), this.floorNumber, true);
+			fle.forwardEventToListener(TimeEventListener.LAMP_HEADER);
+		}
+		
+		elevatorFloors[elevatorNumber] = this.floorNumber;
+		
+		boolean sentCarButtonPresses = false;
 		while (!carButtonEventQueue.isEmpty()) {
+			sentCarButtonPresses = true;
 			System.out.println("Sending car button event to elevator...");
 			CarButtonEvent event = (CarButtonEvent) carButtonEventQueue.nextEvent();
 			Duration waitTime = Duration.between(event.getEventInstant(), clock.instant());
@@ -112,12 +131,29 @@ public class Floor {
 					event.getDestinationFloor());
 			sendEvent(event, elevatorNumber);
 		}
+		
+		if (sentCarButtonPresses) {
+			simulationDone[floorNumber - 1] = false;
+		}
+		
+		if (actorEventQueue.isEmpty()) {
+			boolean done = true;
+			for (int i = 0; i < simulationDone.length; i++) {
+				if (simulationDone[i] == false) done = false;
+			}
+			if (done) {
+				SimulationEndEvent sme = new SimulationEndEvent(Instant.now(), true);
+				sme.forwardEventToListener(TimeEventListener.SME_HEADER);
+			}
+		}
 	}
 
 	public void elevatorDeparted(int elevatorNumber) {
 		if (floorLamps[elevatorNumber]) {
 			System.out.println("Floor " + floorNumber + ": turning lamp off");
 			floorLamps[elevatorNumber] = false;
+			FloorLampEvent fle = new FloorLampEvent(Instant.now(), this.floorNumber, false);
+			fle.forwardEventToListener(TimeEventListener.LAMP_HEADER);
 		}
 	}
 
@@ -139,15 +175,17 @@ public class Floor {
 				DatagramPacket sendPacket = new DatagramPacket(data,
 						data.length, InetAddress.getLocalHost(), CarButtonPressEvent.ELEVATOR_LISTEN_PORT);
 				sendSocket.send(sendPacket);
+				cbpe.forwardEventToListener(TimeEventListener.CAR_BUTTON_HEADER);
 			} else if (event instanceof RequestElevatorEvent) {
 				RequestElevatorEvent reev = (RequestElevatorEvent) event;
 				FloorButtonPressEvent fbpe = new FloorButtonPressEvent(reev.getEventInstant(),
-						reev.getFloor(), reev.isGoingUp());
+						reev.getFloor(), reev.isGoingUp(), reev.getDoorError());
 				out.writeObject(fbpe);
 				byte[] data = dataStream.toByteArray();
 				DatagramPacket sendPacket = new DatagramPacket(data,
 						data.length, InetAddress.getLocalHost(), FloorButtonPressEvent.SCHEDULER_LISTEN_PORT);
 				sendSocket.send(sendPacket);
+				fbpe.forwardEventToListener(TimeEventListener.FLOOR_BUTTON_HEADER);
 				carButtonEventQueue.addNoValidate(reev.getCarButtonEvent());
 			}
 			out.close();
@@ -194,7 +232,9 @@ public class Floor {
 
 		setReceiveSocket(FloorArrivalEvent.FLOOR_LISTEN_PORT);
 		clock.start();
-
+		GuiDemo guiDemo = new GuiDemo();
+		guiDemo.start();
+		
 		System.out.println("Simulation started...");
 
 		while (true) {

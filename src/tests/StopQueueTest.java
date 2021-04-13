@@ -69,6 +69,12 @@ public class StopQueueTest {
         assert ( sq.pollNext() == 2);
         assert ( sq.pollNext() == 1);
         assert ( sq.pollNext() == null); // sq must be empty before exiting method call
+        
+        
+        sq.addStop(5, 1);
+        sq.addStop(10, 5);
+        assert ( sq.pollNext() == 5);
+        assert ( sq.pollNext() == 10);
     }
 
     @Test
@@ -97,5 +103,8 @@ public class StopQueueTest {
             assert (stopTime > lastStopTime);
             lastStopTime = stopTime;
         }
+        sq.addStop(10, 1);
+        sq.addStop(1, 10);
+        assert (sq.calculateStopTime(1, 10) > sq.calculateStopTime(5, 10));
     }
 }
