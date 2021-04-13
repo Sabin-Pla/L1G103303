@@ -14,10 +14,10 @@ import java.util.ArrayList;
 
 public class ParserTest {
 
-    static final int NUM_EVENTS = 10;
+    static final int NUM_EVENTS = 2;
 
     @Test
-    public void parseFile() throws FileNotFoundException, InvalidDirectionException {
+    public void parseFile() throws FileNotFoundException, InvalidDirectionException, InterruptedException {
         URL resource = getClass().getResource("parserTest.txt");
         File f =  new File(resource.getFile());
         assert (f != null);
@@ -25,10 +25,12 @@ public class ParserTest {
         p.parseEvents();
         p.close();
         SimulationClock clock = p.getClock();
-        clock.start();
         ArrayList<RequestElevatorEvent> events = p.getEvents();
         assert (events != null);
         assert (events.size() == NUM_EVENTS);
         for (int i=0; i < NUM_EVENTS; i++) assert (!events.get(i).hasPassed(clock));
+        clock.start();
+        Thread.sleep(500);
+        for (int i=0; i < NUM_EVENTS; i++) assert (events.get(i).hasPassed(clock));
     }
 }

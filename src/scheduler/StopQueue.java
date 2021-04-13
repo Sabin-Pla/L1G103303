@@ -1,32 +1,54 @@
 package scheduler;
 
 import java.util.ArrayList;
+import java.util.Stack;
 
 public class StopQueue {
 
     private ArrayList<Stop> stops;
     private boolean goingUp;
+    private Stack<Integer> remainingFloors; // a stack of the floors remaining until the next destination
     private final int STOP_TIME_WRT_FLOOR_MOVE = 2; // every stop in the queue adds this many stops worth of time
 
     public StopQueue() {
         stops = new ArrayList<>();
     }
 
-    public StopQueue(StopQueue sq) {
+    @SuppressWarnings("unchecked")
+	public StopQueue(StopQueue sq) {
         this.stops = (ArrayList<Stop>) sq.stops.clone();
         this.goingUp = sq.goingUp;
     }
-
+    
+    public int nextFloor() {
+    	return remainingFloors.pop();
+    }
+    
+    @SuppressWarnings("unchecked")
+	public Stack<Integer> getRemainingFloors() {
+    	if (remainingFloors == null) return null;
+    	return (Stack<Integer>) remainingFloors.clone();
+    }
+    
     public Integer peekNext() {
         if (stops.size() == 0) return null;
         return stops.get(0).floor;
     }
+    
+    public Integer peekSecond() {
+        if (stops.size() < 2) return null;
+        return stops.get(1).floor;
+    }
 
     public Integer pollNext() {
         if (stops.size() == 0) return null;
+        int floorsToNext[] = stops.get(0).floorsToNext();
+        if (floorsToNext == null) return stops.remove(0).floor;
+        remainingFloors = new Stack<Integer>();
+        for (int i = floorsToNext.length - 1; i > -1; i--) remainingFloors.push(floorsToNext[i]);
         return stops.remove(0).floor;
     }
-
+   
     public int[] floorsToNext(int floor) {
         int index = stops.indexOf(new Stop(floor));
         return stops.get(index).floorsToNext();
@@ -79,9 +101,10 @@ public class StopQueue {
     public int calculateStopTime(int floorNumber, int currentFloor) {
         StopQueue cloneQueue = new StopQueue(this);
         addStop(floorNumber, currentFloor, cloneQueue);
-        int stopTime = Math.abs(floorNumber -  currentFloor);
+        int stopTime = Math.abs(currentFloor - cloneQueue.stops.get(0).floor);
         for (Stop s : cloneQueue.stops) {
             if (s.floor == floorNumber) break;
+            if (s.floorsToNext() == null) break;
             stopTime += STOP_TIME_WRT_FLOOR_MOVE + s.floorsToNext().length;
         }
         return stopTime;
@@ -89,7 +112,30 @@ public class StopQueue {
 
     public void addStop(int floorNumber, int currentFloor) {
         addStop(floorNumber, currentFloor, this);
-
+        /**
+    	Stop currentFloorStop = new Stop(currentFloor);
+    	Stop currentDestination = null;
+    	if (remainingFloors != null && !remainingFloors.isEmpty()) currentDestination = new Stop(remainingFloors.get(remainingFloors.size() - 1));
+    	Stop nextDestination = stops.get(0); 
+    	if (currentDestination == null || currentDestination.isBetween(currentFloorStop, nextDestination)) { 
+    	*/
+        int nextDestinationFloor = stops.get(0).floor;
+        if (remainingFloors == null || remainingFloors.isEmpty() || nextDestinationFloor != remainingFloors.get(remainingFloors.size() - 1)) {
+    		remainingFloors = new Stack<Integer>();
+        	int difference = floorNumber - currentFloor;
+        	if (difference > 0 ) {
+        		// current floor is smaller than floor number -> going up
+        		for (int i = nextDestinationFloor; i >= currentFloor + 1; i--) {
+        			remainingFloors.push(i);
+        		}
+        	} else {
+        		// current floor is larger than floor number -> going down
+        		for (int i = nextDestinationFloor; i <= currentFloor - 1; i++) {
+        			remainingFloors.push(i);
+        		}
+        	}
+    	}
+    
     }
     /**
      * At a departure stop (no corresponding FBPE)
@@ -144,4 +190,27 @@ public class StopQueue {
         // no return by this line -> queue is empty or the given floor should be the last stop
         stops.add(new Stop(floorNumber));
     }
+
+	public boolean isMoving() {
+		return remainingFloors == null || remainingFloors.isEmpty();
+	}
+	
+	public boolean isEmpty() {
+		return stops.size() == 0;
+	}
+
+	public void printQueue() {
+		System.out.print("[ ");
+		for (int i = 0; i < stops.size(); i ++) {
+			if (i != stops.size() - 1) {
+				System.out.print(stops.get(i).floor + ", ");
+			} else {
+				System.out.println(stops.get(i).floor + " ]");
+			}
+		}
+	}
+
+	public void reportDoorFailure(int expected) {
+		remainingFloors.push(expected);
+	}
 }

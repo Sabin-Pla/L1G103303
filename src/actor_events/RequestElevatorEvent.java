@@ -9,6 +9,7 @@ public class RequestElevatorEvent extends TimeEvent {
 
     private boolean goingUp;
     private int floor;
+    private boolean doorError;
     private CarButtonEvent carButtonEvent;
 
     /**
@@ -18,12 +19,13 @@ public class RequestElevatorEvent extends TimeEvent {
      * @param goingUp true if the passenger wants to go to a higher floor, otherwise false
      * @param carButtonEvent the corresponding elevator button press event (i.e, where the passenger intends to go)
      */
-    public RequestElevatorEvent(int floor, boolean goingUp, CarButtonEvent carButtonEvent)
+    public RequestElevatorEvent(int floor, boolean goingUp, boolean doorError, CarButtonEvent carButtonEvent)
             throws InvalidDirectionException {
         super(carButtonEvent.getEventInstant());
         this.goingUp = goingUp;
         this.floor = floor;
         this.carButtonEvent = carButtonEvent;
+        this.doorError = doorError;
 
         if (goingUp && carButtonEvent.getDestinationFloor() < floor) {
             throw new InvalidDirectionException("Going down to a higher floor");
@@ -64,4 +66,8 @@ public class RequestElevatorEvent extends TimeEvent {
         return new Date(getEventInstant().toEpochMilli()) +
                 " From " + floor + " To " +  carButtonEvent.getDestinationFloor();
     }
+
+	public boolean getDoorError() {
+		return doorError;
+	}
 }

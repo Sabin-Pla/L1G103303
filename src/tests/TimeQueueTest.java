@@ -25,12 +25,10 @@ public class TimeQueueTest {
         File f =  new File(resource.getFile());
         assert (f != null);
         Parser p = new Parser(f);
-        p.parseEvents();
+        clock = p.getClock();
         events = p.getEvents();
         assert (events != null);
-        clock = p.getClock();
         assert (clock != null);
-        clock.start();
     }
 
     @Test

@@ -11,6 +11,7 @@ public class FloorButtonPressEvent extends TimeEvent {
 
     private boolean goingUp;
     private int floor;
+    boolean doorError;
 
     /**
      *
@@ -25,11 +26,13 @@ public class FloorButtonPressEvent extends TimeEvent {
      *
      * @param floor the floor at which the button was pressed
      * @param goingUp true if the passenger wants to go to a higher floor, otherwise false
-     */
-    public FloorButtonPressEvent(Instant eventInstant, int floor, boolean goingUp)  {
+     * @param doorError true if a door opening error should be simulated
+     */    
+    public FloorButtonPressEvent(Instant eventInstant, int floor, boolean goingUp, boolean doorError)  {
         super(eventInstant);
         this.goingUp = goingUp;
         this.floor = floor;
+        this.doorError = doorError;
     }
 
     /**
@@ -38,6 +41,10 @@ public class FloorButtonPressEvent extends TimeEvent {
      */
     public boolean isGoingUp() {
         return goingUp;
+    }
+    
+    public boolean doorError() {
+    	return doorError;
     }
 
     /**

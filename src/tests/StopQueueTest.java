@@ -69,6 +69,12 @@ public class StopQueueTest {
         assert ( sq.pollNext() == 2);
         assert ( sq.pollNext() == 1);
         assert ( sq.pollNext() == null); // sq must be empty before exiting method call
+        
+        
+        sq.addStop(5, 1);
+        sq.addStop(10, 5);
+        assert ( sq.pollNext() == 5);
+        assert ( sq.pollNext() == 10);
     }
 
     @Test
@@ -89,7 +95,7 @@ public class StopQueueTest {
     }
 
     @Test
-    public void CalculateStopTimeTest() {
+    public void calculateStopTimeTest() {
         int lastStopTime = sq.calculateStopTime(1, 1);
         assert (lastStopTime == 0); // ensure the stop time is 0 if the elevator is already at the floor
         for (int i = 2; i < 10; i++) {
